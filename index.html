@@ -173,7 +173,10 @@
 
   <script>
     // System Constants and Registry State Arrays
-    const ABLY_KEY = 'LLfRjA.j4Y1GQ:JoO4hvLPV6GcaOJd7w6IS6zcWJX9BgEOShVZn2kW6b8';
+   const ably = new Ably.Realtime({
+  key: "YOUR_ABLY_API_KEY", // Or token/authUrl
+  clientId: "unique-user-id-or-username" // <-- THIS MUST BE PRESENT
+});
     let localProfile = JSON.parse(localStorage.getItem('ctw_profile')) || null;
     let chatRegistry = JSON.parse(localStorage.getItem('ctw_history')) || {}; 
     let activePeer = null;

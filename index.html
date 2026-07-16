@@ -1,217 +1,452 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Live Multi-User Chat Test</title>
-  <!-- 1. Include the Realtime Service Library -->
-  <script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CTWchat - Live Messenger</title>
+  <!-- Ably Realtime CDN SDK -->
+  <script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
 
-    body {
-      background-color: #f0f2f5;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-    }
+    body {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      color: #333;
+    }
 
-    .chat-container {
-      width: 100%;
-      max-width: 450px;
-      height: 90vh;
-      background: #ffffff;
-      border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
+    /* Primary Application Wrapper */
+    .app-window {
+      width: 100%;
+      max-width: 480px;
+      height: 85vh;
+      background: #ffffff;
+      border-radius: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+    }
 
-    .chat-header {
-      background: #2ecc71;
-      color: white;
-      padding: 16px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
+    /* Screen 1: Registration View */
+    .auth-screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #ffffff;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 40px;
+      z-index: 10;
+      transition: transform 0.4s ease, opacity 0.4s ease;
+    }
 
-    .chat-status-dot {
-      width: 10px;
-      height: 10px;
-      background-color: #ffffff;
-      border-radius: 50%;
-    }
+    .auth-screen.hidden {
+      transform: translateY(-100%);
+      opacity: 0;
+      pointer-events: none;
+    }
 
-    .chat-header-info h2 {
-      font-size: 16px;
-      font-weight: 600;
-    }
+    .brand-logo {
+      text-align: center;
+      margin-bottom: 30px;
+    }
 
-    .chat-header-info p {
-      font-size: 12px;
-      opacity: 0.8;
-    }
+    .brand-logo h1 {
+      font-size: 32px;
+      font-weight: 800;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -1px;
+    }
 
-    .chat-messages {
-      flex: 1;
-      padding: 16px;
-      overflow-y: auto;
-      background-color: #f7f9fa;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
+    .brand-logo p {
+      font-size: 14px;
+      color: #777;
+      margin-top: 5px;
+    }
 
-    .message {
-      max-width: 75%;
-      padding: 10px 14px;
-      border-radius: 16px;
-      font-size: 14px;
-      line-height: 1.4;
-      word-wrap: break-word;
-      position: relative;
-    }
+    .form-group {
+      margin-bottom: 20px;
+    }
 
-    /* Style for messages from other people */
-    .message.received {
-      background-color: #e9ecef;
-      color: #212529;
-      align-self: flex-start;
-      border-bottom-left-radius: 4px;
-    }
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #666;
+      margin-bottom: 8px;
+    }
 
-    /* Style for messages sent by you */
-    .message.sent {
-      background-color: #2ecc71;
-      color: white;
-      align-self: flex-end;
-      border-bottom-right-radius: 4px;
-    }
+    .form-input {
+      width: 100%;
+      padding: 14px 16px;
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      font-size: 15px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
 
-    .message-time {
-      font-size: 9px;
-      margin-top: 4px;
-      text-align: right;
-      opacity: 0.7;
-    }
+    .form-input:focus {
+      border-color: #667eea;
+    }
 
-    .chat-input-area {
-      padding: 12px;
-      background: white;
-      border-top: 1px solid #e9ecef;
-      display: flex;
-      gap: 8px;
-    }
+    .btn-primary {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+      transition: opacity 0.2s;
+    }
 
-    .chat-input {
-      flex: 1;
-      padding: 12px;
-      border: 1px solid #ced4da;
-      border-radius: 24px;
-      outline: none;
-      font-size: 14px;
-    }
+    .btn-primary:hover {
+      opacity: 0.95;
+    }
 
-    .send-btn {
-      background-color: #2ecc71;
-      color: white;
-      border: none;
-      padding: 0 18px;
-      border-radius: 24px;
-      cursor: pointer;
-      font-weight: 600;
-    }
-  </style>
+    /* Screen 2: Main Chat View */
+    .chat-screen {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      width: 100%;
+    }
+
+    .chat-header {
+      background: #ffffff;
+      padding: 16px 20px;
+      border-bottom: 1px solid #f0f0f0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .user-profile-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .avatar {
+      width: 40px;
+      height: 40px;
+      background: #e2e8f0;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      color: #4a5568;
+    }
+
+    .header-details h2 {
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .status-badge {
+      font-size: 12px;
+      color: #2ecc71;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      background: #2ecc71;
+      border-radius: 50%;
+    }
+
+    .logout-btn {
+      background: none;
+      border: none;
+      color: #e53e3e;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* Messages Stream Container */
+    .chat-messages {
+      flex: 1;
+      padding: 20px;
+      background: #f7fafc;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .message-wrapper {
+      display: flex;
+      flex-direction: column;
+      max-width: 80%;
+    }
+
+    .message-wrapper.sent {
+      align-self: flex-end;
+    }
+
+    .message-wrapper.received {
+      align-self: flex-start;
+    }
+
+    .sender-tag {
+      font-size: 11px;
+      font-weight: 600;
+      color: #718096;
+      margin-bottom: 4px;
+      padding-left: 4px;
+    }
+
+    .message-body {
+      padding: 12px 16px;
+      border-radius: 16px;
+      font-size: 14px;
+      line-height: 1.5;
+      word-break: break-word;
+    }
+
+    .sent .message-body {
+      background: #667eea;
+      color: white;
+      border-bottom-right-radius: 4px;
+    }
+
+    .received .message-body {
+      background: #edf2f7;
+      color: #2d3748;
+      border-bottom-left-radius: 4px;
+    }
+
+    .message-time {
+      font-size: 10px;
+      opacity: 0.6;
+      margin-top: 4px;
+      text-align: right;
+    }
+
+    /* Message Input Box */
+    .chat-input-container {
+      padding: 16px;
+      background: white;
+      border-top: 1px solid #f0f0f0;
+      display: flex;
+      gap: 10px;
+    }
+
+    .message-input {
+      flex: 1;
+      padding: 14px 18px;
+      border: 1px solid #e2e8f0;
+      border-radius: 24px;
+      outline: none;
+      font-size: 14px;
+      background: #f7fafc;
+    }
+
+    .message-input:focus {
+      background: #fff;
+      border-color: #667eea;
+    }
+
+    .btn-send {
+      background: #667eea;
+      color: white;
+      border: none;
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      transition: transform 0.1s;
+    }
+
+    .btn-send:active {
+      transform: scale(0.95);
+    }
+  </style>
 </head>
 <body>
 
-  <div class="chat-container">
-    <div class="chat-header">
-      <div class="chat-status-dot"></div>
-      <div class="chat-header-info">
-        <h2>Live Test Room</h2>
-        <p id="connection-status">Connecting...</p>
-      </div>
-    </div>
+  <div class="app-window">
+    
+    <!-- AUTHENTICATION REGISTRATION SCREEN -->
+    <div class="auth-screen" id="auth-screen">
+      <div class="brand-logo">
+        <h1>CTWchat</h1>
+        <p>Enter details to join the live network channel</p>
+      </div>
+      <form id="auth-form">
+        <div class="form-group">
+          <label for="reg-username">Display Name</label>
+          <input type="text" id="reg-username" class="form-input" placeholder="e.g. John Doe" required autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label for="reg-email">Email Address</label>
+          <input type="email" id="reg-email" class="form-input" placeholder="name@domain.com" required autocomplete="off">
+        </div>
+        <button type="submit" class="btn-primary">Register & Enter</button>
+      </form>
+    </div>
 
-    <div class="chat-messages" id="chat-messages"></div>
+    <!-- MAIN CHAT INTERFACE SCREEN -->
+    <div class="chat-screen">
+      <div class="chat-header">
+        <div class="user-profile-meta">
+          <div class="avatar" id="user-avatar">??</div>
+          <div class="header-details">
+            <h2 id="header-username">CTWchat Node</h2>
+            <div class="status-badge"><span class="status-dot"></span><span id="network-status">Connecting...</span></div>
+          </div>
+        </div>
+        <button class="logout-btn" id="btn-logout">Exit</button>
+      </div>
 
-    <form class="chat-input-area" id="chat-form">
-      <input type="text" id="chat-input" class="chat-input" placeholder="Type a message..." autocomplete="off" required>
-      <button type="submit" class="send-btn">Send</button>
-    </form>
-  </div>
+      <div class="chat-messages" id="chat-messages">
+        <!-- Message payloads render dynamically here -->
+      </div>
 
-  <script>
-    // 2. Assign a unique ID to this browser tab so it knows who sent what
-    const myClientId = 'user_' + Math.random().toString(36).substr(2, 9);
+      <form class="chat-input-container" id="chat-form">
+        <input type="text" id="chat-input" class="message-input" placeholder="Type a message..." autocomplete="off" required>
+        <button type="submit" class="btn-send">➔</button>
+      </form>
+    </div>
 
-    // 3. Paste your free Ably API Key here:
-    const ABLY_KEY = 'LLfRjA.j4Y1GQ:JoO4hvLPV6GcaOJd7w6IS6zcWJX9BgEOShVZn2kW6b8'; 
+  </div>
 
-    const chatForm = document.getElementById('chat-form');
-    const chatInput = document.getElementById('chat-input');
-    const chatMessages = document.getElementById('chat-messages');
-    const statusText = document.getElementById('connection-status');
+  <script>
+    // App State Configuration
+    let currentUser = JSON.parse(localStorage.getItem('ctw_user')) || null;
+    const ABLY_KEY = 'LLfRjA.j4Y1GQ:JoO4hvLPV6GcaOJd7w6IS6zcWJX9BgEOShVZn2kW6b8';
+    
+    const authScreen = document.getElementById('auth-screen');
+    const authForm = document.getElementById('auth-form');
+    const chatForm = document.getElementById('chat-form');
+    const chatInput = document.getElementById('chat-input');
+    const chatMessages = document.getElementById('chat-messages');
+    
+    const labelUsername = document.getElementById('header-username');
+    const labelAvatar = document.getElementById('user-avatar');
+    const labelStatus = document.getElementById('network-status');
+    const btnLogout = document.getElementById('btn-logout');
 
-    // Initialize Connection
-    const ably = new Ably.Realtime(ABLY_KEY);
-    const channel = ably.channels.get('test-chat-room');
+    // Initialize Network Core
+    const ably = new Ably.Realtime(ABLY_KEY);
+    const channel = ably.channels.get('ctw-global-stream');
 
-    ably.connection.on('connected', () => {
-      statusText.textContent = "Live & Connected";
-    });
+    ably.connection.on('connected', () => {
+      labelStatus.textContent = "Live Network Active";
+    });
+    ably.connection.on('disconnected', () => {
+      labelStatus.textContent = "Disconnected";
+    });
 
-    ably.connection.on('failed', () => {
-      statusText.textContent = "Connection failed";
-    });
+    // Check Session Profile State on Load
+    function runSessionCheck() {
+      if (currentUser) {
+        authScreen.classList.add('hidden');
+        labelUsername.textContent = currentUser.username;
+        labelAvatar.textContent = currentUser.username.substring(0,2).toUpperCase();
+      } else {
+        authScreen.classList.remove('hidden');
+      }
+    }
 
-    // 4. LISTEN FOR INCOMING MESSAGES FROM ANYONE
-    channel.subscribe('message', (incoming) => {
-      const data = incoming.data;
-      
-      // If the message came from this tab, style it as "sent", otherwise "received"
-      const messageType = (data.senderId === myClientId) ? 'sent' : 'received';
-      
-      appendMessage(data.text, messageType);
-    });
+    // Handle Authentication Submission
+    authForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const username = document.getElementById('reg-username').value.trim();
+      const email = document.getElementById('reg-email').value.trim();
 
-    function appendMessage(text, type) {
-      const messageDiv = document.createElement('div');
-      messageDiv.classList.add('message', type);
-      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      
-      messageDiv.innerHTML = `${escapeHTML(text)} <div class="message-time">${timeStr}</div>`;
-      chatMessages.appendChild(messageDiv);
-      chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
+      if(username && email) {
+        currentUser = { username, email, id: 'uid_' + Math.random().toString(36).substr(2, 9) };
+        localStorage.setItem('ctw_user', JSON.stringify(currentUser));
+        runSessionCheck();
+      }
+    });
 
-    function escapeHTML(str) {
-      return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
-    }
+    // Session Log Out
+    btnLogout.addEventListener('click', () => {
+      localStorage.removeItem('ctw_user');
+      currentUser = null;
+      runSessionCheck();
+    });
 
-    // 5. SEND MESSAGE TO THE SERVER
-    chatForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const text = chatInput.value.trim();
-      
-      if (text) {
-        // Publish to everyone subscribed to the channel
-        channel.publish('message', {
-          text: text,
-          senderId: myClientId
-        });
-        chatInput.value = '';
-      }
-    });
-  </script>
+    // Listen for incoming message feeds
+    channel.subscribe('broadcast', (payload) => {
+      const data = payload.data;
+      const isMe = currentUser && (data.senderId === currentUser.id);
+      appendMessageBlock(data, isMe ? 'sent' : 'received');
+    });
+
+    function appendMessageBlock(data, styleType) {
+      const wrapper = document.createElement('div');
+      wrapper.classList.add('message-wrapper', styleType);
+
+      const timeStr = new Date(data.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      wrapper.innerHTML = `
+        <div class="sender-tag">${escapeHTML(data.senderName)} (${escapeHTML(data.senderEmail)})</div>
+        <div class="message-body">
+          ${escapeHTML(data.text)}
+          <div class="message-time">${timeStr}</div>
+        </div>
+      `;
+
+      chatMessages.appendChild(wrapper);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    function escapeHTML(str) {
+      return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
+    }
+
+    // Dispatch message transaction
+    chatForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const text = chatInput.value.trim();
+
+      if (text && currentUser) {
+        channel.publish('broadcast', {
+          text: text,
+          senderId: currentUser.id,
+          senderName: currentUser.username,
+          senderEmail: currentUser.email,
+          timestamp: Date.now()
+        });
+        chatInput.value = '';
+      }
+    });
+
+    // Run Initialization Hooks
+    runSessionCheck();
+  </script>
 </body>
 </html>

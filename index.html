@@ -3,450 +3,381 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CTWchat - Live Messenger</title>
-  <!-- Ably Realtime CDN SDK -->
+  <title>CTWchat - Direct Messenger</title>
   <script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; justify-content: center; align-items: center; height: 100vh; color: #333; }
+    
+    .app-window { width: 100%; max-width: 500px; height: 85vh; background: #ffffff; border-radius: 20px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2); display: flex; flex-direction: column; overflow: hidden; position: relative; }
+    
+    /* Auth View */
+    .auth-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #ffffff; display: flex; flex-direction: column; justify-content: center; padding: 40px; z-index: 20; transition: all 0.4s ease; }
+    .auth-screen.hidden { transform: translateY(-100%); opacity: 0; pointer-events: none; }
+    .brand-logo { text-align: center; margin-bottom: 25px; }
+    .brand-logo h1 { font-size: 32px; font-weight: 800; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; color: #666; margin-bottom: 6px; }
+    .form-input { width: 100%; padding: 12px 16px; border: 2px solid #e2e8f0; border-radius: 12px; font-size: 15px; outline: none; }
+    .form-input:focus { border-color: #667eea; }
+    .file-input-label { display: block; padding: 12px; background: #f7fafc; border: 2px dashed #cbd5e0; border-radius: 12px; text-align: center; cursor: pointer; font-size: 14px; color: #4a5568; }
+    .avatar-preview { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; margin: 10px auto 0; display: none; border: 2px solid #667eea; }
+    .btn-primary { width: 100%; padding: 14px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3); }
 
-    body {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      color: #333;
-    }
+    /* Navigation Tabs */
+    .app-tabs { display: flex; background: #edf2f7; border-bottom: 1px solid #e2e8f0; }
+    .tab-btn { flex: 1; padding: 14px; background: none; border: none; font-weight: 600; color: #4a5568; cursor: pointer; transition: all 0.2s; font-size: 14px; }
+    .tab-btn.active { background: white; color: #667eea; border-bottom: 3px solid #667eea; }
 
-    /* Primary Application Wrapper */
-    .app-window {
-      width: 100%;
-      max-width: 480px;
-      height: 85vh;
-      background: #ffffff;
-      border-radius: 20px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      position: relative;
-    }
+    /* Chat View Panels */
+    .view-panel { display: none; flex: 1; flex-direction: column; overflow: hidden; height: 100%; }
+    .view-panel.active { display: flex; }
 
-    /* Screen 1: Registration View */
-    .auth-screen {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: #ffffff;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      padding: 40px;
-      z-index: 10;
-      transition: transform 0.4s ease, opacity 0.4s ease;
-    }
+    /* Friends Tab List */
+    .friends-list { padding: 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+    .friend-item { display: flex; align-items: center; gap: 12px; padding: 12px; background: #f7fafc; border-radius: 12px; cursor: pointer; border: 1px solid #e2e8f0; transition: background 0.2s; }
+    .friend-item:hover { background: #edf2f7; }
+    .friend-avatar { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; background: #cbd5e0; }
+    .friend-info h4 { font-size: 15px; font-weight: 600; }
+    .friend-info p { font-size: 12px; color: #718096; }
 
-    .auth-screen.hidden {
-      transform: translateY(-100%);
-      opacity: 0;
-      pointer-events: none;
-    }
+    /* Backup Panel Layout */
+    .backup-panel { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+    .backup-box { padding: 16px; background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 12px; }
+    .backup-box p { font-size: 13px; color: #4a5568; margin-bottom: 12px; }
 
-    .brand-logo {
-      text-align: center;
-      margin-bottom: 30px;
-    }
+    /* Chat Active Screen */
+    .chat-header { background: #ffffff; padding: 12px 20px; border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; gap: 12px; }
+    .active-recipient-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; }
+    .chat-messages { flex: 1; padding: 16px; background: #f7fafc; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+    
+    /* Message styling */
+    .msg-block { display: flex; flex-direction: column; max-width: 75%; }
+    .msg-block.sent { align-self: flex-end; }
+    .msg-block.received { align-self: flex-start; }
+    .msg-text { padding: 10px 14px; border-radius: 14px; font-size: 14px; line-height: 1.4; word-break: break-word; }
+    .sent .msg-text { background: #667eea; color: white; border-bottom-right-radius: 4px; }
+    .received .msg-text { background: #edf2f7; color: #2d3748; border-bottom-left-radius: 4px; }
+    .msg-time { font-size: 9px; opacity: 0.6; margin-top: 2px; text-align: right; }
 
-    .brand-logo h1 {
-      font-size: 32px;
-      font-weight: 800;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      letter-spacing: -1px;
-    }
-
-    .brand-logo p {
-      font-size: 14px;
-      color: #777;
-      margin-top: 5px;
-    }
-
-    .form-group {
-      margin-bottom: 20px;
-    }
-
-    .form-group label {
-      display: block;
-      font-size: 12px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: #666;
-      margin-bottom: 8px;
-    }
-
-    .form-input {
-      width: 100%;
-      padding: 14px 16px;
-      border: 2px solid #e2e8f0;
-      border-radius: 12px;
-      font-size: 15px;
-      outline: none;
-      transition: border-color 0.2s;
-    }
-
-    .form-input:focus {
-      border-color: #667eea;
-    }
-
-    .btn-primary {
-      width: 100%;
-      padding: 14px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      border: none;
-      border-radius: 12px;
-      font-size: 16px;
-      font-weight: 600;
-      cursor: pointer;
-      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-      transition: opacity 0.2s;
-    }
-
-    .btn-primary:hover {
-      opacity: 0.95;
-    }
-
-    /* Screen 2: Main Chat View */
-    .chat-screen {
-      display: flex;
-      flex-direction: column;
-      height: 100%;
-      width: 100%;
-    }
-
-    .chat-header {
-      background: #ffffff;
-      padding: 16px 20px;
-      border-bottom: 1px solid #f0f0f0;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .user-profile-meta {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .avatar {
-      width: 40px;
-      height: 40px;
-      background: #e2e8f0;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: bold;
-      color: #4a5568;
-    }
-
-    .header-details h2 {
-      font-size: 16px;
-      font-weight: 700;
-    }
-
-    .status-badge {
-      font-size: 12px;
-      color: #2ecc71;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    .status-dot {
-      width: 8px;
-      height: 8px;
-      background: #2ecc71;
-      border-radius: 50%;
-    }
-
-    .logout-btn {
-      background: none;
-      border: none;
-      color: #e53e3e;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-    }
-
-    /* Messages Stream Container */
-    .chat-messages {
-      flex: 1;
-      padding: 20px;
-      background: #f7fafc;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    .message-wrapper {
-      display: flex;
-      flex-direction: column;
-      max-width: 80%;
-    }
-
-    .message-wrapper.sent {
-      align-self: flex-end;
-    }
-
-    .message-wrapper.received {
-      align-self: flex-start;
-    }
-
-    .sender-tag {
-      font-size: 11px;
-      font-weight: 600;
-      color: #718096;
-      margin-bottom: 4px;
-      padding-left: 4px;
-    }
-
-    .message-body {
-      padding: 12px 16px;
-      border-radius: 16px;
-      font-size: 14px;
-      line-height: 1.5;
-      word-break: break-word;
-    }
-
-    .sent .message-body {
-      background: #667eea;
-      color: white;
-      border-bottom-right-radius: 4px;
-    }
-
-    .received .message-body {
-      background: #edf2f7;
-      color: #2d3748;
-      border-bottom-left-radius: 4px;
-    }
-
-    .message-time {
-      font-size: 10px;
-      opacity: 0.6;
-      margin-top: 4px;
-      text-align: right;
-    }
-
-    /* Message Input Box */
-    .chat-input-container {
-      padding: 16px;
-      background: white;
-      border-top: 1px solid #f0f0f0;
-      display: flex;
-      gap: 10px;
-    }
-
-    .message-input {
-      flex: 1;
-      padding: 14px 18px;
-      border: 1px solid #e2e8f0;
-      border-radius: 24px;
-      outline: none;
-      font-size: 14px;
-      background: #f7fafc;
-    }
-
-    .message-input:focus {
-      background: #fff;
-      border-color: #667eea;
-    }
-
-    .btn-send {
-      background: #667eea;
-      color: white;
-      border: none;
-      width: 46px;
-      height: 46px;
-      border-radius: 50%;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: bold;
-      transition: transform 0.1s;
-    }
-
-    .btn-send:active {
-      transform: scale(0.95);
-    }
+    .chat-input-container { padding: 12px; background: white; border-top: 1px solid #f0f0f0; display: flex; gap: 8px; }
+    .message-input { flex: 1; padding: 12px 16px; border: 1px solid #e2e8f0; border-radius: 20px; outline: none; font-size: 14px; }
+    .btn-send { background: #667eea; color: white; border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 16px; }
   </style>
 </head>
 <body>
 
   <div class="app-window">
     
-    <!-- AUTHENTICATION REGISTRATION SCREEN -->
+    <!-- AUTHENTICATION SCREEN -->
     <div class="auth-screen" id="auth-screen">
       <div class="brand-logo">
         <h1>CTWchat</h1>
-        <p>Enter details to join the live network channel</p>
+        <p>Register profile to discover nearby peers</p>
       </div>
       <form id="auth-form">
         <div class="form-group">
           <label for="reg-username">Display Name</label>
-          <input type="text" id="reg-username" class="form-input" placeholder="e.g. John Doe" required autocomplete="off">
+          <input type="text" id="reg-username" class="form-input" placeholder="Your Name" required autocomplete="off">
         </div>
         <div class="form-group">
           <label for="reg-email">Email Address</label>
           <input type="email" id="reg-email" class="form-input" placeholder="name@domain.com" required autocomplete="off">
         </div>
+        <div class="form-group">
+          <label>Profile Picture</label>
+          <label for="reg-avatar" class="file-input-label" id="file-label">Choose image file...</label>
+          <input type="file" id="reg-avatar" accept="image/*" style="display: none;">
+          <img id="avatar-preview" class="avatar-preview" src="" alt="Preview">
+        </div>
         <button type="submit" class="btn-primary">Register & Enter</button>
       </form>
     </div>
 
-    <!-- MAIN CHAT INTERFACE SCREEN -->
-    <div class="chat-screen">
+    <!-- MAIN APP WRAPPER SYSTEM -->
+    <div class="app-tabs">
+      <button class="tab-btn active" onclick="switchView('friends-view')">Friends</button>
+      <button class="tab-btn" id="active-chat-tab" onclick="switchView('chat-view')">Chat</button>
+      <button class="tab-btn" onclick="switchView('settings-view')">Backup</button>
+    </div>
+
+    <!-- VIEW 1: FRIENDS DIRECTORY -->
+    <div id="friends-view" class="view-panel active">
+      <div class="friends-list" id="friends-list-container">
+        <!-- Discovered online peers populate dynamically -->
+      </div>
+    </div>
+
+    <!-- VIEW 2: ACTIVE MESSENGER WINDOW -->
+    <div id="chat-view" class="view-panel">
       <div class="chat-header">
-        <div class="user-profile-meta">
-          <div class="avatar" id="user-avatar">??</div>
-          <div class="header-details">
-            <h2 id="header-username">CTWchat Node</h2>
-            <div class="status-badge"><span class="status-dot"></span><span id="network-status">Connecting...</span></div>
-          </div>
+        <img src="" class="active-recipient-avatar" id="active-chat-avatar" style="display:none;">
+        <div>
+          <h4 id="active-chat-title">Select a friend to begin</h4>
+          <span id="active-chat-email" style="font-size:11px; color:#718096;"></span>
         </div>
-        <button class="logout-btn" id="btn-logout">Exit</button>
       </div>
-
-      <div class="chat-messages" id="chat-messages">
-        <!-- Message payloads render dynamically here -->
-      </div>
-
+      <div class="chat-messages" id="chat-messages-container"></div>
       <form class="chat-input-container" id="chat-form">
-        <input type="text" id="chat-input" class="message-input" placeholder="Type a message..." autocomplete="off" required>
-        <button type="submit" class="btn-send">➔</button>
+        <input type="text" id="chat-input" class="message-input" placeholder="Type a message..." autocomplete="off" disabled>
+        <button type="submit" class="btn-send" id="btn-send" disabled>➔</button>
       </form>
+    </div>
+
+    <!-- VIEW 3: DATA ENGINE BACKUP UTILITIES -->
+    <div id="settings-view" class="view-panel">
+      <div class="backup-panel">
+        <div class="backup-box">
+          <h3>Export System Log</h3>
+          <p>Download encrypted transaction logs containing local chat histories for preservation.</p>
+          <button class="btn-primary" onclick="exportChatBackup()">Export Data (.json)</button>
+        </div>
+        <div class="backup-box">
+          <h3>Import System Log</h3>
+          <p>Restore chat arrays from a previously generated system export archive.</p>
+          <label for="import-file-input" class="btn-primary" style="display:block; text-align:center; cursor:pointer;">Upload Archive</label>
+          <input type="file" id="import-file-input" accept=".json" style="display:none;" onchange="importChatBackup(event)">
+        </div>
+        <button class="logout-btn" style="color:#e53e3e; font-weight:600; background:none; border:none; cursor:pointer; padding:10px;" onclick="wipeSessionData()">Reset Application Session</button>
+      </div>
     </div>
 
   </div>
 
   <script>
-    // App State Configuration
-    let currentUser = JSON.parse(localStorage.getItem('ctw_user')) || null;
+    // System Configurations
     const ABLY_KEY = 'LLfRjA.j4Y1GQ:JoO4hvLPV6GcaOJd7w6IS6zcWJX9BgEOShVZn2kW6b8';
-    
-    const authScreen = document.getElementById('auth-screen');
-    const authForm = document.getElementById('auth-form');
-    const chatForm = document.getElementById('chat-form');
-    const chatInput = document.getElementById('chat-input');
-    const chatMessages = document.getElementById('chat-messages');
-    
-    const labelUsername = document.getElementById('header-username');
-    const labelAvatar = document.getElementById('user-avatar');
-    const labelStatus = document.getElementById('network-status');
-    const btnLogout = document.getElementById('btn-logout');
+    let localProfile = JSON.parse(localStorage.getItem('ctw_profile')) || null;
+    let chatRegistry = JSON.parse(localStorage.getItem('ctw_history')) || {}; // Structure: { [userEmail]: [ {msgData} ] }
+    let rosterList = {}; // Discovered online directory instances
+    let activePeer = null; // Current active target object
 
-    // Initialize Network Core
+    // UI elements
+    const fileInput = document.getElementById('reg-avatar');
+    const fileLabel = document.getElementById('file-label');
+    const avatarPreview = document.getElementById('avatar-preview');
+    let base64AvatarString = "";
+
+    // Ably Initialization
     const ably = new Ably.Realtime(ABLY_KEY);
-    const channel = ably.channels.get('ctw-global-stream');
+    const peerDiscoveryChannel = ably.channels.get('ctw-peer-discovery');
+    const directMessageChannel = ably.channels.get('ctw-direct-stream');
 
-    ably.connection.on('connected', () => {
-      labelStatus.textContent = "Live Network Active";
-    });
-    ably.connection.on('disconnected', () => {
-      labelStatus.textContent = "Disconnected";
+    // Handle Image upload and convert to base64 string
+    fileInput.addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (file) {
+        fileLabel.textContent = file.name;
+        const reader = new FileReader();
+        reader.onload = function(event) {
+          base64AvatarString = event.target.result;
+          avatarPreview.src = base64AvatarString;
+          avatarPreview.style.display = "block";
+        };
+        reader.readAsDataURL(file);
+      }
     });
 
-    // Check Session Profile State on Load
-    function runSessionCheck() {
-      if (currentUser) {
-        authScreen.classList.add('hidden');
-        labelUsername.textContent = currentUser.username;
-        labelAvatar.textContent = currentUser.username.substring(0,2).toUpperCase();
-      } else {
-        authScreen.classList.remove('hidden');
+    // View Routing Machine
+    function switchView(panelId) {
+      document.querySelectorAll('.view-panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById(panelId).classList.add('active');
+      
+      // Highlight correct tab element
+      if(panelId === 'friends-view') document.querySelectorAll('.tab-btn')[0].classList.add('active');
+      if(panelId === 'chat-view') document.querySelectorAll('.tab-btn')[1].classList.add('active');
+      if(panelId === 'settings-view') document.querySelectorAll('.tab-btn')[2].classList.add('active');
+
+      if (panelId === 'chat-view' && activePeer) {
+        renderTargetChatHistory();
       }
     }
 
-    // Handle Authentication Submission
-    authForm.addEventListener('submit', (e) => {
+    // Process Profile Authentication Form
+    document.getElementById('auth-form').addEventListener('submit', (e) => {
       e.preventDefault();
       const username = document.getElementById('reg-username').value.trim();
-      const email = document.getElementById('reg-email').value.trim();
+      const email = document.getElementById('reg-email').value.trim().toLowerCase();
 
-      if(username && email) {
-        currentUser = { username, email, id: 'uid_' + Math.random().toString(36).substr(2, 9) };
-        localStorage.setItem('ctw_user', JSON.stringify(currentUser));
-        runSessionCheck();
+      if (username && email) {
+        localProfile = { username, email, avatar: base64AvatarString || 'https://via.placeholder.com/150' };
+        localStorage.setItem('ctw_profile', JSON.stringify(localProfile));
+        bootstrapSession();
       }
     });
 
-    // Session Log Out
-    btnLogout.addEventListener('click', () => {
-      localStorage.removeItem('ctw_user');
-      currentUser = null;
-      runSessionCheck();
+    function bootstrapSession() {
+      if(!localProfile) return;
+      document.getElementById('auth-screen').classList.add('hidden');
+      
+      // Periodically announce presence to discovery group channel 
+      setInterval(() => {
+        peerDiscoveryChannel.publish('ping', localProfile);
+      }, 3000);
+      
+      // Immediately announce presence on sign in
+      peerDiscoveryChannel.publish('ping', localProfile);
+    }
+
+    // Subscribe to incoming peer announcements
+    peerDiscoveryChannel.subscribe('ping', (packet) => {
+      const peer = packet.data;
+      if(!localProfile || peer.email === localProfile.email) return; // Ignore self
+
+      // Track inside runtime directory
+      rosterList[peer.email] = { username: peer.username, email: peer.email, avatar: peer.avatar, lastSeen: Date.now() };
+      rebuildFriendsUI();
     });
 
-    // Listen for incoming message feeds
-    channel.subscribe('broadcast', (payload) => {
-      const data = payload.data;
-      const isMe = currentUser && (data.senderId === currentUser.id);
-      appendMessageBlock(data, isMe ? 'sent' : 'received');
+    function rebuildFriendsUI() {
+      const container = document.getElementById('friends-list-container');
+      container.innerHTML = '';
+
+      Object.values(rosterList).forEach(peer => {
+        // Drop users offline for greater than 10 seconds
+        if(Date.now() - peer.lastSeen > 10000) return;
+
+        const row = document.createElement('div');
+        row.className = 'friend-item';
+        row.onclick = () => initiateDirectMessageChannel(peer);
+        row.innerHTML = `
+          <img class="friend-avatar" src="${peer.avatar}">
+          <div class="friend-info">
+            <h4>${escapeHTML(peer.username)}</h4>
+            <p>${escapeHTML(peer.email)}</p>
+          </div>
+        `;
+        container.appendChild(row);
+      });
+    }
+
+    function initiateDirectMessageChannel(peer) {
+      activePeer = peer;
+      document.getElementById('active-chat-tab').textContent = `Chat (${peer.username})`;
+      document.getElementById('active-chat-title').textContent = peer.username;
+      document.getElementById('active-chat-email').textContent = peer.email;
+      
+      const headerImg = document.getElementById('active-chat-avatar');
+      headerImg.src = peer.avatar;
+      headerImg.style.display = "block";
+
+      document.getElementById('chat-input').disabled = false;
+      document.getElementById('btn-send').disabled = false;
+
+      switchView('chat-view');
+    }
+
+    // Direct Message Routing Engine
+    directMessageChannel.subscribe('msg', (envelope) => {
+      const packet = envelope.data;
+      if(!localProfile) return;
+
+      // Ensure packet context belongs to active message path
+      let targetedThreadKey = null;
+      if(packet.senderEmail === localProfile.email) {
+        targetedThreadKey = packet.recipientEmail; // I sent it
+      } else if (packet.recipientEmail === localProfile.email) {
+        targetedThreadKey = packet.senderEmail; // Received it
+      }
+
+      if(targetedThreadKey) {
+        if(!chatRegistry[targetedThreadKey]) chatRegistry[targetedThreadKey] = [];
+        // Prevent duplicate appending
+        if(!chatRegistry[targetedThreadKey].some(m => m.timestamp === packet.timestamp && m.text === packet.text)) {
+          chatRegistry[targetedThreadKey].push(packet);
+          localStorage.setItem('ctw_history', JSON.stringify(chatRegistry));
+        }
+
+        if(activePeer && activePeer.email === targetedThreadKey) {
+          renderTargetChatHistory();
+        }
+      }
     });
 
-    function appendMessageBlock(data, styleType) {
-      const wrapper = document.createElement('div');
-      wrapper.classList.add('message-wrapper', styleType);
+    function renderTargetChatHistory() {
+      const pane = document.getElementById('chat-messages-container');
+      pane.innerHTML = '';
+      if(!activePeer) return;
 
-      const timeStr = new Date(data.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const thread = chatRegistry[activePeer.email] || [];
+      thread.forEach(msg => {
+        const style = (msg.senderEmail === localProfile.email) ? 'sent' : 'received';
+        const block = document.createElement('div');
+        block.className = `msg-block ${style}`;
+        const formatTime = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-      wrapper.innerHTML = `
-        <div class="sender-tag">${escapeHTML(data.senderName)} (${escapeHTML(data.senderEmail)})</div>
-        <div class="message-body">
-          ${escapeHTML(data.text)}
-          <div class="message-time">${timeStr}</div>
-        </div>
-      `;
+        block.innerHTML = `
+          <div class="msg-text">
+            ${escapeHTML(msg.text)}
+            <div class="msg-time">${formatTime}</div>
+          </div>
+        `;
+        pane.appendChild(block);
+      });
+      pane.scrollTop = pane.scrollHeight;
+    }
 
-      chatMessages.appendChild(wrapper);
-      chatMessages.scrollTop = chatMessages.scrollHeight;
+    document.getElementById('chat-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const input = document.getElementById('chat-input');
+      const text = input.value.trim();
+
+      if(text && localProfile && activePeer) {
+        directMessageChannel.publish('msg', {
+          text: text,
+          senderEmail: localProfile.email,
+          recipientEmail: activePeer.email,
+          timestamp: Date.now()
+        });
+        input.value = '';
+      }
+    });
+
+    // Backup & Recovery Toolkit
+    function exportChatBackup() {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(chatRegistry));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `ctw_backup_${Date.now()}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    }
+
+    function importChatBackup(event) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          // Simple schema validation
+          if(typeof parsed === 'object' && parsed !== null) {
+            chatRegistry = { ...chatRegistry, ...parsed };
+            localStorage.setItem('ctw_history', JSON.stringify(chatRegistry));
+            alert("Backup ledger imported and merged successfully!");
+            if(activePeer) renderTargetChatHistory();
+          }
+        } catch(err) {
+          alert("Error parsing backup data. Ensure file structure is valid.");
+        }
+      };
+      reader.readAsText(event.target.files[0]);
+    }
+
+    function wipeSessionData() {
+      localStorage.clear();
+      window.location.reload();
     }
 
     function escapeHTML(str) {
       return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
     }
 
-    // Dispatch message transaction
-    chatForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const text = chatInput.value.trim();
+    // Periodic garbage collector loop for cleaning disconnected peer lists
+    setInterval(rebuildFriendsUI, 4000);
 
-      if (text && currentUser) {
-        channel.publish('broadcast', {
-          text: text,
-          senderId: currentUser.id,
-          senderName: currentUser.username,
-          senderEmail: currentUser.email,
-          timestamp: Date.now()
-        });
-        chatInput.value = '';
-      }
-    });
-
-    // Run Initialization Hooks
-    runSessionCheck();
+    // Run Setup Hook
+    if(localProfile) bootstrapSession();
   </script>
 </body>
 </html>

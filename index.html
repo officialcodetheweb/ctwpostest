@@ -2,322 +2,265 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>CTWchat - Full Screen Realtime Messenger</title>
-  <!-- Ably Core SDK -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CTWchat - Direct Messenger</title>
   <script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; justify-content: center; align-items: center; height: 100vh; color: #333; }
     
-    /* Responsive Full-Screen Foundation */
-    html, body { height: 100%; width: 100%; background: #f7fafc; overflow: hidden; }
-    body { display: flex; justify-content: center; align-items: center; }
+    .app-window { width: 100%; max-width: 500px; height: 85vh; background: #ffffff; border-radius: 20px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2); display: flex; flex-direction: column; overflow: hidden; position: relative; }
     
-    .app-window { width: 100vw; height: 100vh; background: #ffffff; display: flex; flex-direction: column; position: relative; }
-    
-    /* Onboarding Screen */
-    .auth-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #ffffff; display: flex; flex-direction: column; justify-content: space-between; padding: 30px; z-index: 20; transition: all 0.4s ease; }
+    /* Auth View */
+    .auth-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #ffffff; display: flex; flex-direction: column; justify-content: center; padding: 40px; z-index: 20; transition: all 0.4s ease; }
     .auth-screen.hidden { transform: translateY(-100%); opacity: 0; pointer-events: none; }
-    .brand-logo { text-align: center; margin-top: 40px; }
-    .brand-logo h1 { font-size: 36px; font-weight: 800; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 8px; }
-    .form-group { margin-bottom: 20px; }
-    .form-group label { display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; color: #666; margin-bottom: 8px; letter-spacing: 0.5px; }
-    .form-input { width: 100%; padding: 14px 18px; border: 2px solid #e2e8f0; border-radius: 12px; font-size: 16px; outline: none; transition: border-color 0.2s; }
+    .brand-logo { text-align: center; margin-bottom: 25px; }
+    .brand-logo h1 { font-size: 32px; font-weight: 800; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; color: #666; margin-bottom: 6px; }
+    .form-input { width: 100%; padding: 12px 16px; border: 2px solid #e2e8f0; border-radius: 12px; font-size: 15px; outline: none; }
     .form-input:focus { border-color: #667eea; }
-    
-    /* Diagnostics Console */
-    .debug-console { background: #1a202c; color: #cbd5e0; padding: 14px; border-radius: 10px; font-family: monospace; font-size: 11px; max-height: 140px; overflow-y: auto; margin-top: 15px; }
-    .debug-entry { margin-bottom: 4px; border-bottom: 1px solid #2d3748; padding-bottom: 4px; }
-    
-    .btn-primary { width: 100%; padding: 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3); transition: opacity 0.2s; }
-    .btn-primary:active { opacity: 0.9; }
+    .file-input-label { display: block; padding: 12px; background: #f7fafc; border: 2px dashed #cbd5e0; border-radius: 12px; text-align: center; cursor: pointer; font-size: 14px; color: #4a5568; }
+    .avatar-preview { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; margin: 10px auto 0; display: none; border: 2px solid #667eea; }
+    .btn-primary { width: 100%; padding: 14px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3); }
 
-    /* Navigation Header */
-    .app-tabs { display: flex; background: #edf2f7; border-bottom: 1px solid #e2e8f0; padding-top: env(safe-area-inset-top); }
-    .tab-btn { flex: 1; padding: 18px 10px; background: none; border: none; font-weight: 600; color: #4a5568; cursor: pointer; font-size: 15px; text-align: center; }
+    /* Navigation Tabs */
+    .app-tabs { display: flex; background: #edf2f7; border-bottom: 1px solid #e2e8f0; }
+    .tab-btn { flex: 1; padding: 14px; background: none; border: none; font-weight: 600; color: #4a5568; cursor: pointer; transition: all 0.2s; font-size: 14px; }
     .tab-btn.active { background: white; color: #667eea; border-bottom: 3px solid #667eea; }
 
-    /* Unified View Panel Layouts */
-    .view-panel { display: none; flex: 1; flex-direction: column; overflow: hidden; height: calc(100vh - 59px); }
+    /* Chat View Panels */
+    .view-panel { display: none; flex: 1; flex-direction: column; overflow: hidden; height: 100%; }
     .view-panel.active { display: flex; }
 
-    /* Friends Directory */
-    .friends-list { padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
-    .friend-item { display: flex; align-items: center; gap: 16px; padding: 16px; background: #f7fafc; border-radius: 14px; cursor: pointer; border: 1px solid #e2e8f0; transition: background 0.2s; }
+    /* Friends Tab List */
+    .friends-list { padding: 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+    .friend-item { display: flex; align-items: center; gap: 12px; padding: 12px; background: #f7fafc; border-radius: 12px; cursor: pointer; border: 1px solid #e2e8f0; transition: background 0.2s; }
     .friend-item:hover { background: #edf2f7; }
-    .friend-avatar { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-weight: bold; font-size: 18px; text-transform: uppercase; }
-    .friend-info h4 { font-size: 16px; font-weight: 600; color: #2d3748; }
-    .friend-info p { font-size: 13px; color: #718096; margin-top: 2px; }
+    .friend-avatar { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; background: #cbd5e0; }
+    .friend-info h4 { font-size: 15px; font-weight: 600; }
+    .friend-info p { font-size: 12px; color: #718096; }
 
-    /* Dynamic Profile Setup & Management */
-    .profile-panel { padding: 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 24px; }
-    .profile-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
-    .profile-heading { font-size: 18px; font-weight: 700; color: #2d3748; margin-bottom: 16px; }
+    /* Backup Panel Layout */
+    .backup-panel { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+    .backup-box { padding: 16px; background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 12px; }
+    .backup-box p { font-size: 13px; color: #4a5568; margin-bottom: 12px; }
 
-    /* Messenger System Layout */
-    .chat-header { background: #ffffff; padding: 16px 20px; border-bottom: 1px solid #edf2f7; display: flex; align-items: center; gap: 14px; }
-    .chat-messages { flex: 1; padding: 20px; background: #f8fafc; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+    /* Chat Active Screen */
+    .chat-header { background: #ffffff; padding: 12px 20px; border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; gap: 12px; }
+    .active-recipient-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; }
+    .chat-messages { flex: 1; padding: 16px; background: #f7fafc; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
     
-    .msg-block { display: flex; flex-direction: column; max-width: 80%; }
+    /* Message styling */
+    .msg-block { display: flex; flex-direction: column; max-width: 75%; }
     .msg-block.sent { align-self: flex-end; }
     .msg-block.received { align-self: flex-start; }
-    .msg-text { padding: 12px 16px; border-radius: 16px; font-size: 15px; line-height: 1.4; word-break: break-word; position: relative; }
+    .msg-text { padding: 10px 14px; border-radius: 14px; font-size: 14px; line-height: 1.4; word-break: break-word; }
     .sent .msg-text { background: #667eea; color: white; border-bottom-right-radius: 4px; }
     .received .msg-text { background: #edf2f7; color: #2d3748; border-bottom-left-radius: 4px; }
-    .msg-time { font-size: 10px; opacity: 0.6; margin-top: 4px; text-align: right; }
+    .msg-time { font-size: 9px; opacity: 0.6; margin-top: 2px; text-align: right; }
 
-    .chat-input-container { padding: 16px; background: white; border-top: 1px solid #edf2f7; display: flex; gap: 12px; padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
-    .message-input { flex: 1; padding: 14px 20px; border: 1px solid #e2e8f0; border-radius: 24px; outline: none; font-size: 15px; background: #f7fafc; }
-    .message-input:focus { background: #fff; border-color: #667eea; }
-    .btn-send { background: #667eea; color: white; border: none; width: 46px; height: 46px; border-radius: 50%; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
-    .btn-send:active { background: #764ba2; }
+    .chat-input-container { padding: 12px; background: white; border-top: 1px solid #f0f0f0; display: flex; gap: 8px; }
+    .message-input { flex: 1; padding: 12px 16px; border: 1px solid #e2e8f0; border-radius: 20px; outline: none; font-size: 14px; }
+    .btn-send { background: #667eea; color: white; border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 16px; }
   </style>
 </head>
 <body>
 
   <div class="app-window">
     
-    <!-- SYSTEM CONFIGURATION ENTRY WINDOW -->
+    <!-- AUTHENTICATION SCREEN -->
     <div class="auth-screen" id="auth-screen">
       <div class="brand-logo">
         <h1>CTWchat</h1>
-        <p>Live Scalable Connection Sandbox</p>
+        <p>Register profile to discover nearby peers</p>
       </div>
-      
       <form id="auth-form">
         <div class="form-group">
           <label for="reg-username">Display Name</label>
-          <input type="text" id="reg-username" class="form-input" placeholder="Enter name..." required autocomplete="off">
+          <input type="text" id="reg-username" class="form-input" placeholder="Your Name" required autocomplete="off">
         </div>
         <div class="form-group">
-          <label for="reg-email">Email Address (Unique Identifier)</label>
+          <label for="reg-email">Email Address</label>
           <input type="email" id="reg-email" class="form-input" placeholder="name@domain.com" required autocomplete="off">
         </div>
-        <button type="submit" class="btn-primary">Initialize Core Network</button>
-      </form>
-
-      <div>
-        <label style="font-size: 11px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.5px;">Live Network Logs</label>
-        <div class="debug-console" id="debug-log-console">
-          <div class="debug-entry">[System] System standing by. Configure profile variables to load network core...</div>
+        <div class="form-group">
+          <label>Profile Picture</label>
+          <label for="reg-avatar" class="file-input-label" id="file-label">Choose image file...</label>
+          <input type="file" id="reg-avatar" accept="image/*" style="display: none;">
+          <img id="avatar-preview" class="avatar-preview" src="" alt="Preview">
         </div>
-      </div>
+        <button type="submit" class="btn-primary">Register & Enter</button>
+      </form>
     </div>
 
-    <!-- RESPONSIVE NAV HEADER SYSTEM -->
+    <!-- MAIN APP WRAPPER SYSTEM -->
     <div class="app-tabs">
       <button class="tab-btn active" onclick="switchView('friends-view')">Friends</button>
       <button class="tab-btn" id="active-chat-tab" onclick="switchView('chat-view')">Chat</button>
-      <button class="tab-btn" onclick="switchView('profile-view')">Profile</button>
+      <button class="tab-btn" onclick="switchView('settings-view')">Backup</button>
     </div>
 
-    <!-- ELEMENT PANELS -->
-    <!-- VIEW 1: DISCOVERY FRAME -->
+    <!-- VIEW 1: FRIENDS DIRECTORY -->
     <div id="friends-view" class="view-panel active">
       <div class="friends-list" id="friends-list-container">
-        <div style="text-align:center; color:#718096; margin-top:60px; font-size:15px;">
-          Synchronizing connection tables...
-        </div>
+        <!-- Discovered online peers populate dynamically -->
       </div>
     </div>
 
-    <!-- VIEW 2: DIALOG MESSENGER -->
+    <!-- VIEW 2: ACTIVE MESSENGER WINDOW -->
     <div id="chat-view" class="view-panel">
       <div class="chat-header">
-        <div class="friend-avatar" id="active-chat-avatar" style="width:38px; height:38px; font-size:14px; display:none;"></div>
+        <img src="" class="active-recipient-avatar" id="active-chat-avatar" style="display:none;">
         <div>
-          <h4 id="active-chat-title">Select a connection to exchange text</h4>
-          <span id="active-chat-email" style="font-size:12px; color:#718096;"></span>
+          <h4 id="active-chat-title">Select a friend to begin</h4>
+          <span id="active-chat-email" style="font-size:11px; color:#718096;"></span>
         </div>
       </div>
       <div class="chat-messages" id="chat-messages-container"></div>
       <form class="chat-input-container" id="chat-form">
-        <input type="text" id="chat-input" class="message-input" placeholder="Write message string..." autocomplete="off" disabled>
+        <input type="text" id="chat-input" class="message-input" placeholder="Type a message..." autocomplete="off" disabled>
         <button type="submit" class="btn-send" id="btn-send" disabled>➔</button>
       </form>
     </div>
 
-    <!-- VIEW 3: USER MANAGED PROFILE EDITOR -->
-    <div id="profile-view" class="view-panel">
-      <div class="profile-panel">
-        
-        <div class="profile-card">
-          <div class="profile-heading">Edit Profile Settings</div>
-          <form id="profile-edit-form">
-            <div class="form-group">
-              <label for="edit-username">Update Display Name</label>
-              <input type="text" id="edit-username" class="form-input" required autocomplete="off">
-            </div>
-            <div class="form-group">
-              <label for="edit-email">Update Identity Email (Will Reset Session)</label>
-              <input type="email" id="edit-email" class="form-input" required autocomplete="off">
-            </div>
-            <button type="submit" class="btn-primary" style="padding: 12px;">Save Profile Changes</button>
-          </form>
+    <!-- VIEW 3: DATA ENGINE BACKUP UTILITIES -->
+    <div id="settings-view" class="view-panel">
+      <div class="backup-panel">
+        <div class="backup-box">
+          <h3>Export System Log</h3>
+          <p>Download encrypted transaction logs containing local chat histories for preservation.</p>
+          <button class="btn-primary" onclick="exportChatBackup()">Export Data (.json)</button>
         </div>
-
-        <div class="profile-card">
-          <div class="profile-heading">Data & Systems</div>
-          <div style="display:flex; gap:10px; margin-bottom:15px;">
-            <button class="btn-primary" style="padding:12px; font-size:13px; background:#edf2f7; color:#4a5568; box-shadow:none;" onclick="exportChatBackup()">Export Chats</button>
-            <label for="import-file-input" class="btn-primary" style="padding:12px; font-size:13px; background:#edf2f7; color:#4a5568; box-shadow:none; text-align:center; cursor:pointer;">Import Backup</label>
-            <input type="file" id="import-file-input" accept=".json" style="display:none;" onchange="importChatBackup(event)">
-          </div>
-          <button style="color:#e53e3e; font-weight:600; background:none; border:none; cursor:pointer; font-size:14px; text-align:left;" onclick="wipeSessionData()">Reset Storage & Logout</button>
+        <div class="backup-box">
+          <h3>Import System Log</h3>
+          <p>Restore chat arrays from a previously generated system export archive.</p>
+          <label for="import-file-input" class="btn-primary" style="display:block; text-align:center; cursor:pointer;">Upload Archive</label>
+          <input type="file" id="import-file-input" accept=".json" style="display:none;" onchange="importChatBackup(event)">
         </div>
-
+        <button class="logout-btn" style="color:#e53e3e; font-weight:600; background:none; border:none; cursor:pointer; padding:10px;" onclick="wipeSessionData()">Reset Application Session</button>
       </div>
     </div>
 
   </div>
 
   <script>
-    // System Constants and Registry State Arrays
-   const ably = new Ably.Realtime({
-  key: "YOUR_ABLY_API_KEY", // Or token/authUrl
-  clientId: "unique-user-id-or-username" // <-- THIS MUST BE PRESENT
-});
+    // System Configurations
+    const ABLY_KEY = 'LLfRjA.j4Y1GQ:JoO4hvLPV6GcaOJd7w6IS6zcWJX9BgEOShVZn2kW6b8';
     let localProfile = JSON.parse(localStorage.getItem('ctw_profile')) || null;
-    let chatRegistry = JSON.parse(localStorage.getItem('ctw_history')) || {}; 
-    let activePeer = null;
+    let chatRegistry = JSON.parse(localStorage.getItem('ctw_history')) || {}; // Structure: { [userEmail]: [ {msgData} ] }
+    let rosterList = {}; // Discovered online directory instances
+    let activePeer = null; // Current active target object
 
-    const authScreen = document.getElementById('auth-screen');
-    const authForm = document.getElementById('auth-form');
-    const profileEditForm = document.getElementById('profile-edit-form');
-    const chatForm = document.getElementById('chat-form');
-    const chatInput = document.getElementById('chat-input');
-    const chatMessages = document.getElementById('chat-messages-container');
-    const friendsContainer = document.getElementById('friends-list-container');
-    const consoleLogs = document.getElementById('debug-log-console');
+    // UI elements
+    const fileInput = document.getElementById('reg-avatar');
+    const fileLabel = document.getElementById('file-label');
+    const avatarPreview = document.getElementById('avatar-preview');
+    let base64AvatarString = "";
 
-    // Activity Stream Console Logger
-    function logger(text) {
-      const entry = document.createElement('div');
-      entry.className = 'debug-entry';
-      entry.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
-      consoleLogs.appendChild(entry);
-      consoleLogs.scrollTop = consoleLogs.scrollHeight;
-    }
+    // Ably Initialization
+    const ably = new Ably.Realtime(ABLY_KEY);
+    const peerDiscoveryChannel = ably.channels.get('ctw-peer-discovery');
+    const directMessageChannel = ably.channels.get('ctw-direct-stream');
 
-    // Instantiating Network Layer Engines
-    logger("Spinning up clustered socket engine...");
-    const ably = new Ably.Realtime({ key: ABLY_KEY });
-    const syncChannel = ably.channels.get('ctw-presence-room');
-
-    ably.connection.on('connected', () => {
-      logger("Connection to Ably Cloud established successfully.");
-      bootstrapSessionCheck();
+    // Handle Image upload and convert to base64 string
+    fileInput.addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (file) {
+        fileLabel.textContent = file.name;
+        const reader = new FileReader();
+        reader.onload = function(event) {
+          base64AvatarString = event.target.result;
+          avatarPreview.src = base64AvatarString;
+          avatarPreview.style.display = "block";
+        };
+        reader.readAsDataURL(file);
+      }
     });
 
-    // Handle Authentication Submission
-    authForm.addEventListener('submit', (e) => {
+    // View Routing Machine
+    function switchView(panelId) {
+      document.querySelectorAll('.view-panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById(panelId).classList.add('active');
+      
+      // Highlight correct tab element
+      if(panelId === 'friends-view') document.querySelectorAll('.tab-btn')[0].classList.add('active');
+      if(panelId === 'chat-view') document.querySelectorAll('.tab-btn')[1].classList.add('active');
+      if(panelId === 'settings-view') document.querySelectorAll('.tab-btn')[2].classList.add('active');
+
+      if (panelId === 'chat-view' && activePeer) {
+        renderTargetChatHistory();
+      }
+    }
+
+    // Process Profile Authentication Form
+    document.getElementById('auth-form').addEventListener('submit', (e) => {
       e.preventDefault();
       const username = document.getElementById('reg-username').value.trim();
       const email = document.getElementById('reg-email').value.trim().toLowerCase();
 
       if (username && email) {
-        localProfile = { username, email };
+        localProfile = { username, email, avatar: base64AvatarString || 'https://via.placeholder.com/150' };
         localStorage.setItem('ctw_profile', JSON.stringify(localProfile));
-        bootstrapSessionCheck();
+        bootstrapSession();
       }
     });
 
-    // Handle Active Profile Updates
-    profileEditForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const nextUsername = document.getElementById('edit-username').value.trim();
-      const nextEmail = document.getElementById('edit-email').value.trim().toLowerCase();
-
-      if (!localProfile) return;
-
-      // If key architecture identity shifts, dump routing layers to preserve data accuracy
-      if (nextEmail !== localProfile.email) {
-        alert("Email changed. System must re-authenticate structural encryption paths.");
-        localProfile = { username: nextUsername, email: nextEmail };
-        localStorage.setItem('ctw_profile', JSON.stringify(localProfile));
-        window.location.reload();
-        return;
-      }
-
-      localProfile.username = nextUsername;
-      localStorage.setItem('ctw_profile', JSON.stringify(localProfile));
-
-      // Push real-time profile mutation updates cleanly up to Ably Roster System
-      syncChannel.presence.update(localProfile, (err) => {
-        if (err) alert("Failed to propagate profile metadata edits: " + err.message);
-        else alert("Profile configuration saved and updated across live nodes!");
-      });
-    });
-
-    function bootstrapSessionCheck() {
-      if (!localProfile || ably.connection.state !== 'connected') return;
-
-      authScreen.classList.add('hidden');
+    function bootstrapSession() {
+      if(!localProfile) return;
+      document.getElementById('auth-screen').classList.add('hidden');
       
-      // Seed profile fields inside settings interface
-      document.getElementById('edit-username').value = localProfile.username;
-      document.getElementById('edit-email').value = localProfile.email;
-
-      // Synchronize state entries into remote table pools
-      syncChannel.presence.enter(localProfile, (err) => {
-        if(err) logger("Identity allocation mapping failed: " + err.message);
-        else logger("System profile published cleanly into live global framework.");
-      });
-
-      syncChannel.presence.subscribe(['enter', 'present', 'update', 'leave'], () => {
-        fetchOnlineRoster();
-      });
-
-      fetchOnlineRoster();
+      // Periodically announce presence to discovery group channel 
+      setInterval(() => {
+        peerDiscoveryChannel.publish('ping', localProfile);
+      }, 3000);
+      
+      // Immediately announce presence on sign in
+      peerDiscoveryChannel.publish('ping', localProfile);
     }
 
-    // Capture Realtime Handshakes directly via Presence State Tables
-    function fetchOnlineRoster() {
-      syncChannel.presence.get((err, members) => {
-        if(err) return;
+    // Subscribe to incoming peer announcements
+    peerDiscoveryChannel.subscribe('ping', (packet) => {
+      const peer = packet.data;
+      if(!localProfile || peer.email === localProfile.email) return; // Ignore self
 
-        friendsContainer.innerHTML = '';
-        let count = 0;
+      // Track inside runtime directory
+      rosterList[peer.email] = { username: peer.username, email: peer.email, avatar: peer.avatar, lastSeen: Date.now() };
+      rebuildFriendsUI();
+    });
 
-        members.forEach(member => {
-          const profile = member.data;
-          if (!profile || !localProfile || profile.email === localProfile.email) return;
+    function rebuildFriendsUI() {
+      const container = document.getElementById('friends-list-container');
+      container.innerHTML = '';
 
-          count++;
-          const initials = profile.username.substring(0,2);
-          const row = document.createElement('div');
-          row.className = 'friend-item';
-          row.onclick = () => initiateTargetChat(profile);
-          row.innerHTML = `
-            <div class="friend-avatar">${initials}</div>
-            <div class="friend-info">
-              <h4>${escapeHTML(profile.username)}</h4>
-              <p>${escapeHTML(profile.email)}</p>
-            </div>
-          `;
-          friendsContainer.appendChild(row);
-        });
+      Object.values(rosterList).forEach(peer => {
+        // Drop users offline for greater than 10 seconds
+        if(Date.now() - peer.lastSeen > 10000) return;
 
-        if (count === 0) {
-          friendsContainer.innerHTML = `
-            <div style="text-align:center; color:#718096; margin-top:60px; font-size:15px; padding: 0 20px;">
-              No other active endpoints detected.<br><br>
-              <span style="font-size:13px; color:#a0aec0;">Open this deployment URL inside an Incognito tab or alternate device to execute a test link pairing.</span>
-            </div>
-          `;
-        }
+        const row = document.createElement('div');
+        row.className = 'friend-item';
+        row.onclick = () => initiateDirectMessageChannel(peer);
+        row.innerHTML = `
+          <img class="friend-avatar" src="${peer.avatar}">
+          <div class="friend-info">
+            <h4>${escapeHTML(peer.username)}</h4>
+            <p>${escapeHTML(peer.email)}</p>
+          </div>
+        `;
+        container.appendChild(row);
       });
     }
 
-    function initiateTargetChat(peer) {
+    function initiateDirectMessageChannel(peer) {
       activePeer = peer;
       document.getElementById('active-chat-tab').textContent = `Chat (${peer.username})`;
       document.getElementById('active-chat-title').textContent = peer.username;
       document.getElementById('active-chat-email').textContent = peer.email;
       
-      const avatarBadge = document.getElementById('active-chat-avatar');
-      avatarBadge.textContent = peer.username.substring(0,2);
-      avatarBadge.style.display = "flex";
+      const headerImg = document.getElementById('active-chat-avatar');
+      headerImg.src = peer.avatar;
+      headerImg.style.display = "block";
 
       document.getElementById('chat-input').disabled = false;
       document.getElementById('btn-send').disabled = false;
@@ -325,35 +268,37 @@
       switchView('chat-view');
     }
 
-    // Global messaging subscription hook pipeline 
-    syncChannel.subscribe('msg', (envelope) => {
+    // Direct Message Routing Engine
+    directMessageChannel.subscribe('msg', (envelope) => {
       const packet = envelope.data;
-      if (!localProfile) return;
+      if(!localProfile) return;
 
-      let threadKey = null;
-      if (packet.senderEmail === localProfile.email) {
-        threadKey = packet.recipientEmail;
+      // Ensure packet context belongs to active message path
+      let targetedThreadKey = null;
+      if(packet.senderEmail === localProfile.email) {
+        targetedThreadKey = packet.recipientEmail; // I sent it
       } else if (packet.recipientEmail === localProfile.email) {
-        threadKey = packet.senderEmail;
+        targetedThreadKey = packet.senderEmail; // Received it
       }
 
-      if (threadKey) {
-        if (!chatRegistry[threadKey]) chatRegistry[threadKey] = [];
-        
-        if (!chatRegistry[threadKey].some(m => m.timestamp === packet.timestamp && m.text === packet.text)) {
-          chatRegistry[threadKey].push(packet);
+      if(targetedThreadKey) {
+        if(!chatRegistry[targetedThreadKey]) chatRegistry[targetedThreadKey] = [];
+        // Prevent duplicate appending
+        if(!chatRegistry[targetedThreadKey].some(m => m.timestamp === packet.timestamp && m.text === packet.text)) {
+          chatRegistry[targetedThreadKey].push(packet);
           localStorage.setItem('ctw_history', JSON.stringify(chatRegistry));
         }
 
-        if (activePeer && activePeer.email === threadKey) {
-          renderChatHistory();
+        if(activePeer && activePeer.email === targetedThreadKey) {
+          renderTargetChatHistory();
         }
       }
     });
 
-    function renderChatHistory() {
-      chatMessages.innerHTML = '';
-      if (!activePeer) return;
+    function renderTargetChatHistory() {
+      const pane = document.getElementById('chat-messages-container');
+      pane.innerHTML = '';
+      if(!activePeer) return;
 
       const thread = chatRegistry[activePeer.email] || [];
       thread.forEach(msg => {
@@ -368,50 +313,36 @@
             <div class="msg-time">${formatTime}</div>
           </div>
         `;
-        chatMessages.appendChild(block);
+        pane.appendChild(block);
       });
-      chatMessages.scrollTop = chatMessages.scrollHeight;
+      pane.scrollTop = pane.scrollHeight;
     }
 
-    chatForm.addEventListener('submit', (e) => {
+    document.getElementById('chat-form').addEventListener('submit', (e) => {
       e.preventDefault();
-      const text = chatInput.value.trim();
+      const input = document.getElementById('chat-input');
+      const text = input.value.trim();
 
-      if (text && localProfile && activePeer) {
-        syncChannel.publish('msg', {
+      if(text && localProfile && activePeer) {
+        directMessageChannel.publish('msg', {
           text: text,
           senderEmail: localProfile.email,
           recipientEmail: activePeer.email,
           timestamp: Date.now()
         });
-        chatInput.value = '';
+        input.value = '';
       }
     });
 
-    // View Navigation Handler Switch 
-    function switchView(panelId) {
-      document.querySelectorAll('.view-panel').forEach(p => p.classList.remove('active'));
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      document.getElementById(panelId).classList.add('active');
-      
-      if(panelId === 'friends-view') document.querySelectorAll('.tab-btn')[0].classList.add('active');
-      if(panelId === 'chat-view') document.querySelectorAll('.tab-btn')[1].classList.add('active');
-      if(panelId === 'profile-view') document.querySelectorAll('.tab-btn')[2].classList.add('active');
-
-      if (panelId === 'chat-view' && activePeer) {
-        renderChatHistory();
-      }
-    }
-
-    // Storage Management Functions
+    // Backup & Recovery Toolkit
     function exportChatBackup() {
       const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(chatRegistry));
-      const anchor = document.createElement('a');
-      anchor.setAttribute("href", dataStr);
-      anchor.setAttribute("download", `ctw_backup_${Date.now()}.json`);
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `ctw_backup_${Date.now()}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
     }
 
     function importChatBackup(event) {
@@ -419,14 +350,15 @@
       reader.onload = function(e) {
         try {
           const parsed = JSON.parse(e.target.result);
-          if (typeof parsed === 'object' && parsed !== null) {
+          // Simple schema validation
+          if(typeof parsed === 'object' && parsed !== null) {
             chatRegistry = { ...chatRegistry, ...parsed };
             localStorage.setItem('ctw_history', JSON.stringify(chatRegistry));
-            alert("Chat logs unified and loaded successfully!");
-            if(activePeer) renderChatHistory();
+            alert("Backup ledger imported and merged successfully!");
+            if(activePeer) renderTargetChatHistory();
           }
         } catch(err) {
-          alert("Corrupted database layout file target structural mismatch.");
+          alert("Error parsing backup data. Ensure file structure is valid.");
         }
       };
       reader.readAsText(event.target.files[0]);
@@ -440,6 +372,12 @@
     function escapeHTML(str) {
       return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
     }
+
+    // Periodic garbage collector loop for cleaning disconnected peer lists
+    setInterval(rebuildFriendsUI, 4000);
+
+    // Run Setup Hook
+    if(localProfile) bootstrapSession();
   </script>
 </body>
 </html>

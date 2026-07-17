@@ -1,662 +1,914 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" class="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title id="system-tab-title">CTW POS System - Advanced Enterprise School ERP Engine</title>
+    <title>CTW SMS - Premium School ERP & Management System</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Poppins', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Ably SDK for Real-time Communication -->
+    <script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
     <style>
-        /* ==========================================================================
-           1. DESIGN SYSTEM VARIABLES & THEME ENGINE TOKENS
-           ========================================================================== */
-        :root[data-theme="light"] {
-            --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-            --glass-bg: rgba(255, 255, 255, 0.45);
-            --glass-border: rgba(255, 255, 255, 0.25);
-            --glass-shadow: rgba(31, 38, 135, 0.08);
-            --text-primary: #1e293b;
-            --text-secondary: #64748b;
-            --tenant-color: #3b82f6;
-            --tenant-hover: #1d4ed8;
-            --success-color: #10b981;
-            --warning-color: #f59e0b;
-            --danger-color: #ef4444;
-            --surface-card: rgba(255, 255, 255, 0.7);
-            --sidebar-width: 260px;
+        .sidebar-scroll::-webkit-scrollbar {
+            width: 4px;
         }
-
-        :root[data-theme="dark"] {
-            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
-            --glass-bg: rgba(15, 23, 42, 0.45);
-            --glass-border: rgba(255, 255, 255, 0.08);
-            --glass-shadow: rgba(0, 0, 0, 0.37);
-            --text-primary: #f8fafc;
-            --text-secondary: #94a3b8;
-            --tenant-color: #6366f1;
-            --tenant-hover: #4f46e5;
-            --success-color: #10b981;
-            --warning-color: #f59e0b;
-            --danger-color: #f43f5e;
-            --surface-card: rgba(30, 41, 59, 0.7);
-            --sidebar-width: 260px;
+        .sidebar-scroll::-webkit-scrollbar-thumb {
+            background: rgba(156, 163, 175, 0.3);
+            border-radius: 2px;
         }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        body { background: var(--bg-gradient); background-attachment: fixed; color: var(--text-primary); min-height: 100vh; overflow-x: hidden; transition: background 0.4s ease; }
-        
-        .glass-panel { background: var(--glass-bg); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid var(--glass-border); box-shadow: 0 8px 32px 0 var(--glass-shadow); border-radius: 16px; }
-        .btn { padding: 0.6rem 1.2rem; border-radius: 8px; border: none; cursor: pointer; font-weight: 500; display: inline-flex; align-items: center; gap: 0.5rem; transition: all 0.2s ease; font-size: 0.9rem; }
-        .btn-primary { background: var(--tenant-color); color: white; }
-        .btn-primary:hover { background: var(--tenant-hover); transform: translateY(-1px); }
-        .btn-secondary { background: rgba(255,255,255,0.1); color: var(--text-primary); border: 1px solid var(--glass-border); }
-        .btn-secondary:hover { background: rgba(255,255,255,0.2); }
-        .btn-danger { background: var(--danger-color); color: white; }
-
-        .form-group { margin-bottom: 1.25rem; }
-        .form-group label { display: block; margin-bottom: 0.5rem; font-size: 0.85rem; color: var(--text-secondary); }
-        .form-control { width: 100%; padding: 0.75rem 1rem; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--glass-border); border-radius: 8px; color: var(--text-primary); font-size: 0.95rem; }
-        .form-control:focus { outline: none; border-color: var(--tenant-color); }
-
-        /* ==========================================================================
-           2. VIEW LAYOUT CONTAINERS & INTERFACES
-           ========================================================================== */
-        #auth-container, #dev-container { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
-        #app-container { display: none; min-height: 100vh; }
-
-        #sidebar { width: var(--sidebar-width); position: fixed; top: 15px; left: 15px; bottom: 15px; z-index: 100; display: flex; flex-direction: column; }
-        .brand-section { padding: 1.5rem; font-weight: 700; font-size: 1.1rem; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; gap: 10px; overflow: hidden; }
-        .brand-logo-img { width: 32px; height: 32px; object-fit: contain; border-radius: 6px; flex-shrink: 0; }
-        .nav-menu { list-style: none; padding: 1rem 0.5rem; flex-grow: 1; }
-        .nav-item { padding: 0.75rem 1rem; border-radius: 8px; cursor: pointer; margin-bottom: 0.25rem; display: flex; align-items: center; gap: 12px; color: var(--text-secondary); font-size: 0.9rem; transition: all 0.2s ease; }
-        .nav-item:hover, .nav-item.active { color: var(--text-primary); background: rgba(255, 255, 255, 0.1); }
-        .nav-item.active { border-left: 4px solid var(--tenant-color); }
-
-        #main-content { margin-left: calc(var(--sidebar-width) + 45px); padding: 15px; min-height: 100vh; display: flex; flex-direction: column; gap: 20px; }
-        header.top-bar { padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items: center; }
-
-        /* Tables & Layout Components */
-        .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; }
-        .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 1.25rem; }
-        .content-card { padding: 1.5rem; }
-        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--glass-border); }
-        
-        .table-responsive { width: 100%; overflow-x: auto; }
-        table.data-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem; }
-        table.data-table th, table.data-table td { padding: 0.85rem 1rem; border-bottom: 1px solid var(--glass-border); }
-        table.data-table th { background: rgba(0, 0, 0, 0.15); }
-
-        /* Center Modal Dialogue Styling Configuration */
-        .modal-backdrop { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(6px); display: none; align-items: center; justify-content: center; z-index: 5000; padding: 20px; }
-        .modal-window { width: 100%; max-width: 500px; padding: 2rem; animation: centerPopup 0.25s cubic-bezier(0.16, 1, 0.3, 1); text-align: center; }
-        
-        #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
-        .toast { padding: 1rem 1.5rem; border-radius: 8px; color: white; min-width: 250px; font-weight: 500; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        
-        @keyframes centerPopup { from { opacity: 0; transform: scale(0.96) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        .glass {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+        }
+        .dark .glass {
+            background: rgba(17, 24, 39, 0.7);
+            backdrop-filter: blur(10px);
+        }
     </style>
 </head>
-<body>
+<body class="bg-slate-50 dark:bg-gray-900 text-slate-800 dark:text-slate-100 font-sans min-h-screen transition-colors duration-200">
 
-    <div id="toast-container"></div>
-
-    <!-- CENTERING MODAL SYSTEM SUBSURFACE LAYER (Replaces generic alerts/prompts) -->
-    <div id="modal-system" class="modal-backdrop" onclick="closeSystemModal(event)">
-        <div class="modal-window glass-panel" onclick="event.stopPropagation()">
-            <div class="card-header" style="margin-bottom: 1.25rem; padding-bottom: 0.5rem; justify-content: center; position: relative;">
-                <h3 id="modal-title" style="font-size: 1.15rem;">System Dialogue</h3>
-                <button class="btn btn-secondary" style="padding:2px 8px; position: absolute; right: 0; top: -2px;" onclick="closeSystemModal(null, true)">&times;</button>
-            </div>
-            <div id="modal-body" style="font-size: 0.95rem; color: var(--text-primary); margin-bottom: 0.5rem;"></div>
-        </div>
-    </div>
-
-    <!-- ==========================================================================
-       1. MASTER DEV PROVISIONING REGISTRY (Ctrl + Shift + D)
-       ========================================================================== */ -->
-    <div id="dev-container" style="display:none;">
-        <div class="glass-panel content-card" style="width:100%; max-width:1000px;">
-            <div class="card-header">
-                <h2>🛠️ Master Developer Provisioning System</h2>
-                <button class="btn btn-secondary" onclick="DevMatrixEngine.exitDevMode()">Exit Workspace Mode</button>
-            </div>
-            <div class="grid-2">
+    <!-- LOGIN SCREEN (Displays initially, toggles off on successful bypass) -->
+    <div id="loginPage" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900 overflow-y-auto">
+        <div class="flex w-full max-w-5xl h-full md:h-[650px] bg-white dark:bg-gray-800 rounded-2xl shadow-2xl overflow-hidden m-4">
+            <!-- Form Side -->
+            <div class="w-full md:w-1/2 p-8 md:p-12 flex flex-col justify-between">
                 <div>
-                    <h3 id="dev-form-heading" style="margin-bottom:1rem; font-size:1rem; color:var(--tenant-color);">Register New Tenant Profile</h3>
-                    <form id="dev-tenant-form" onsubmit="DevMatrixEngine.handleFormSubmission(event)">
-                        <input type="hidden" id="dev-edit-target-id" value="">
-                        <div class="form-group"><label>School Name</label><input type="text" class="form-control" id="dev-sch-name" required placeholder="e.g. Oakwood International"></div>
-                        <div class="form-group"><label>School Logo Asset URL / Inline SVG Data String</label><input type="text" class="form-control" id="dev-sch-logo" placeholder="https://images.unsplash.com/photo-1546410531-bb4caa6b424d?w=80"></div>
-                        <div class="form-group"><label>Master Administrator Password Designation</label><input type="password" class="form-control" id="dev-sch-pass" required placeholder="Admin clearance verification pass token"></div>
-                        <div class="form-group"><label>Geographical Location Address</label><input type="text" class="form-control" id="dev-sch-loc" required placeholder="City, Country"></div>
-                        <div class="form-group"><label>Branding Theme Hex Code Highlight</label><input type="color" class="form-control" id="dev-sch-color" value="#6366f1"></div>
-                        <div class="form-group"><label>Slogan Tagline Metadata Phrase</label><input type="text" class="form-control" id="dev-sch-info" required placeholder="Unlocking potentials..."></div>
-                        <div class="form-group"><label>About Narrative Institutional Description Profile</label><textarea class="form-control" id="dev-sch-about" required style="resize:none; height:60px;"></textarea></div>
-                        <div style="display: flex; gap: 10px;">
-                            <button type="submit" id="dev-form-submit-btn" class="btn btn-primary" style="flex-grow: 1; justify-content:center;">Provision Tenant</button>
-                            <button type="button" id="dev-cancel-edit-btn" class="btn btn-secondary" style="display:none;" onclick="DevMatrixEngine.resetFormState()">Cancel Edit</button>
+                    <div class="flex items-center gap-3 mb-8">
+                        <div class="w-10 h-10 rounded-lg bg-primary-600 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-primary-500/30">C</div>
+                        <span class="text-xl font-bold dark:text-white">CTW <span class="text-primary-600">SMS</span></span>
+                    </div>
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-2">Welcome Back!</h2>
+                    <p class="text-gray-500 dark:text-gray-400 text-sm mb-6">Access your workspace and manage your institution dashboard.</p>
+                    
+                    <form id="authForm" onsubmit="handleLogin(event)" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider mb-2 text-gray-600 dark:text-gray-300">Email Address</label>
+                            <input type="email" id="loginEmail" required value="admin@codetheweb.com" class="w-full px-4 py-3 rounded-lg bg-gray-100 dark:bg-gray-700 border-none focus:ring-2 focus:ring-primary-500 text-sm outline-none dark:text-white">
                         </div>
+                        <div>
+                            <div class="flex justify-between mb-2">
+                                <label class="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">Password</label>
+                                <a href="#" onclick="alert('Demo OTP Verification triggered (simulated)')" class="text-xs text-primary-600 hover:underline">Forgot?</a>
+                            </div>
+                            <input type="password" id="loginPass" required value="••••••••" class="w-full px-4 py-3 rounded-lg bg-gray-100 dark:bg-gray-700 border-none focus:ring-2 focus:ring-primary-500 text-sm outline-none dark:text-white">
+                        </div>
+                        <div class="flex items-center justify-between py-2">
+                            <label class="flex items-center text-xs text-gray-600 dark:text-gray-400">
+                                <input type="checkbox" checked class="mr-2 rounded text-primary-600 focus:ring-primary-500"> Remember Session
+                            </label>
+                        </div>
+                        <button type="submit" class="w-full bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3 rounded-lg shadow-lg shadow-primary-500/30 transition duration-150">Sign In to Dashboard</button>
                     </form>
                 </div>
-                <div>
-                    <h3 style="margin-bottom:1rem; font-size:1rem; color:var(--tenant-color);">Active Registered Tenant Profiles</h3>
-                    <div class="table-responsive" style="max-height:480px; overflow-y:auto;">
-                        <table class="data-table">
-                            <thead><tr><th>Visual Logo</th><th>School Matrix Profile</th><th>Actions Configuration</th></tr></thead>
-                            <tbody id="dev-tenant-rows"></tbody>
-                        </table>
+                <div class="text-center text-xs text-gray-400 mt-4">
+                    Secured by 256-bit institutional encryption protocols.
+                </div>
+            </div>
+            <!-- Illustration Side -->
+            <div class="hidden md:flex w-1/2 bg-gradient-to-tr from-primary-700 to-primary-500 p-12 flex-col justify-between text-white relative">
+                <div class="absolute inset-0 bg-opacity-20 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px]"></div>
+                <div class="relative">
+                    <span class="px-3 py-1 bg-white/20 rounded-full text-xs font-semibold backdrop-blur-sm">v4.2 SaaS Edition</span>
+                    <h3 class="text-3xl font-bold mt-8">Unlocking potentials, unleashing digital possibilities.</h3>
+                    <p class="text-white/80 mt-4 text-sm leading-relaxed">The unified operational ecosystem for forward-thinking modern campuses, departments, academics, assets, library catalogs, and live institutional channels.</p>
+                </div>
+                <div class="relative flex items-center gap-4">
+                    <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center"><i class="fas fa-university"></i></div>
+                    <div>
+                        <h4 class="font-bold text-sm">CODE THE WEB</h4>
+                        <p class="text-xs text-white/70">officialcodetheweb@gmail.com</p>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- ==========================================================================
-       2. PRIMARY AUTH GATEWAY (NO GMAIL ASSIGNMENT REQUIREMENT)
-       ========================================================================== */ -->
-    <div id="auth-container">
-        <div class="auth-card glass-panel" style="width:100%; max-width:450px; padding:2.5rem;">
-            <div class="auth-header" style="text-align:center; margin-bottom:1.75rem;">
-                <div style="display:flex; justify-content:center; margin-bottom:0.75rem;">
-                    <img id="login-logo-preview" class="brand-logo-img" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236366f1'><path d='M12 3L1 9l11 6 9-4.91V17h2V9L12 3z'/></svg>" alt="School Logo" style="width:64px; height:64px;">
-                </div>
-                <h1 id="login-branding-name" style="font-size:1.8rem; font-weight:800; background: linear-gradient(to right, #3b82f6, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom:0.25rem;">CTW POS System</h1>
-                <p id="login-branding-info" style="color:var(--text-secondary); font-size:0.85rem;">Advanced Multi-Tenant ERP Suite</p>
-            </div>
-            <form onsubmit="TenantRuntimeEngine.executeLoginSession(event)">
-                <div class="form-group">
-                    <label>Target Institutional Workspace Tenant</label>
-                    <select class="form-control" id="login-tenant-select" onchange="TenantRuntimeEngine.applyDynamicBrandingContext()"></select>
-                </div>
-                <div class="form-group">
-                    <label>Identity Permission Layer Access Role</label>
-                    <select class="form-control" id="login-role-select">
-                        <option value="Administrator">Administrator</option>
-                        <option value="Teacher">Teacher</option>
-                        <option value="Student">Student</option>
-                        <option value="Parent">Parent</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>User System Tracking Access Key ID</label>
-                    <input type="text" class="form-control" id="login-id" required placeholder="User system identifier">
-                </div>
-                <div class="form-group">
-                    <label>Cryptographic Entry Passphrase Key</label>
-                    <input type="password" class="form-control" id="login-pass" required placeholder="••••••••">
-                </div>
-                <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center; margin-top:0.75rem;">Authenticate Identity Session Context</button>
-            </form>
-            <p style="text-align:center; margin-top:1.5rem; font-size:0.75rem; color:var(--text-secondary);">Shortcut Notice: Press <kbd style="background:rgba(255,255,255,0.15); padding:2px 4px; border-radius:4px;">Ctrl+Shift+D</kbd> anywhere to provision schools.</p>
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div id="toast" class="fixed bottom-5 right-5 z-50 hidden max-w-sm bg-white dark:bg-gray-800 border-l-4 border-primary-500 shadow-xl rounded-lg p-4 flex items-center gap-3 transform transition-transform duration-300">
+        <div class="text-primary-500"><i class="fas fa-info-circle text-lg"></i></div>
+        <div>
+            <h5 class="font-semibold text-xs text-gray-900 dark:text-white">Live System Update</h5>
+            <p class="text-xs text-gray-500 dark:text-gray-400" id="toastMessage">Dashboard successfully initialized.</p>
         </div>
     </div>
 
-    <!-- ==========================================================================
-       3. SYSTEM CORE APPLICATION CONTAINER
-       ========================================================================== */ -->
-    <div id="app-container">
-        <aside id="sidebar" class="glass-panel">
-            <div class="brand-section" id="sidebar-branding-title">🏫 School ERP</div>
-            <ul class="nav-menu" id="app-menu-routes"></ul>
+    <!-- MAIN DASHBOARD WRAPPER -->
+    <div id="appContainer" class="hidden flex min-h-screen">
+        
+        <!-- SIDEBAR -->
+        <aside class="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col fixed h-full z-40 transition-all duration-200" id="sidebar">
+            <div class="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-primary-600 flex items-center justify-center text-white font-bold shadow-md">C</div>
+                    <span class="font-bold text-lg dark:text-white">CTW <span class="text-primary-600">SMS</span></span>
+                </div>
+                <button onclick="toggleSidebar()" class="md:hidden text-gray-500 hover:text-gray-700"><i class="fas fa-times"></i></button>
+            </div>
+            
+            <nav class="flex-1 overflow-y-auto p-4 space-y-1 sidebar-scroll">
+                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-3 block mb-2">Main Controls</span>
+                <a href="#" onclick="showSection('dashboard')" class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-lg bg-primary-50 text-primary-600 font-medium text-sm transition-all" id="nav-dashboard">
+                    <i class="fas fa-th-large w-5"></i> Dashboard
+                </a>
+                
+                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-3 block mt-4 mb-2">Operational Hub</span>
+                <a href="#" onclick="showSection('students')" class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm transition-all" id="nav-students">
+                    <i class="fas fa-user-graduate w-5"></i> Students <span class="ml-auto bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-2 py-0.5 rounded text-[10px]" id="studentBadge">2</span>
+                </a>
+                <a href="#" onclick="showSection('teachers')" class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm transition-all" id="nav-teachers">
+                    <i class="fas fa-chalkboard-teacher w-5"></i> Teachers
+                </a>
+                <a href="#" onclick="showSection('finance')" class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm transition-all" id="nav-finance">
+                    <i class="fas fa-wallet w-5"></i> Finance & Fees
+                </a>
+                <a href="#" onclick="showSection('exams')" class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm transition-all" id="nav-exams">
+                    <i class="fas fa-file-invoice w-5"></i> Exams & Grading
+                </a>
+
+                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-3 block mt-4 mb-2">Live Systems</span>
+                <a href="#" onclick="showSection('communication')" class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm transition-all" id="nav-communication">
+                    <i class="fas fa-comments-dollar w-5 text-indigo-500"></i> Ably Live Chat <span class="ml-auto bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 px-2 py-0.5 rounded text-[10px] animate-pulse">Live</span>
+                </a>
+                <a href="#" onclick="showSection('settings')" class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm transition-all" id="nav-settings">
+                    <i class="fas fa-sliders-h w-5"></i> ERP Settings
+                </a>
+            </nav>
+
+            <div class="p-4 border-t border-gray-200 dark:border-gray-700">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center font-bold text-slate-700">A</div>
+                    <div class="truncate">
+                        <h5 class="text-xs font-semibold dark:text-white truncate">Administrator</h5>
+                        <p class="text-[10px] text-gray-400 truncate">admin@codetheweb.com</p>
+                    </div>
+                </div>
+            </div>
         </aside>
 
-        <main id="main-content">
-            <header class="top-bar glass-panel">
-                <h2 id="app-stage-title" style="font-size:1.1rem; font-weight:600;">Dashboard Hub</h2>
-                <div style="display:flex; align-items:center; gap:15px;">
-                    <button class="btn btn-secondary" style="padding:8px;" onclick="TenantRuntimeEngine.toggleThemeMode()">🌓</button>
-                    <button class="btn btn-danger" style="padding:0.4rem 0.8rem;" onclick="TenantRuntimeEngine.terminateSession()">Terminate Session Link</button>
+        <!-- MAIN WINDOW -->
+        <main class="flex-1 md:ml-64 flex flex-col min-h-screen">
+            
+            <!-- HEADER -->
+            <header class="h-16 border-b border-gray-200 dark:border-gray-700 bg-white/80 dark:bg-gray-800/80 glass sticky top-0 z-30 px-6 flex justify-between items-center">
+                <div class="flex items-center gap-4">
+                    <button onclick="toggleSidebar()" class="md:hidden text-gray-500 hover:text-gray-700"><i class="fas fa-bars text-xl"></i></button>
+                    <div class="hidden sm:flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg px-3 py-1.5 gap-2">
+                        <i class="fas fa-search text-gray-400 text-xs"></i>
+                        <input type="text" placeholder="Search operational database..." class="bg-transparent text-xs border-none outline-none w-48 text-slate-800 dark:text-slate-100">
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-4">
+                    <!-- Real-time Clock -->
+                    <span id="realtimeClock" class="hidden lg:inline text-xs font-mono text-gray-500 dark:text-gray-400">00:00:00 AM</span>
+
+                    <!-- Theme Toggle -->
+                    <button onclick="toggleDarkMode()" class="text-gray-500 hover:text-primary-500 transition"><i class="fas fa-moon text-lg"></i></button>
+
+                    <!-- Notifications Dropdown Trigger -->
+                    <div class="relative">
+                        <button class="relative text-gray-500 hover:text-primary-500 transition">
+                            <i class="fas fa-bell text-lg"></i>
+                            <span class="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
+                        </button>
+                    </div>
+
+                    <!-- User Profile Quick Actions -->
+                    <button onclick="showSection('settings')" class="w-8 h-8 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center font-bold text-sm">
+                        AD
+                    </button>
                 </div>
             </header>
-            <div id="app-workspace-stage" class="workspace"></div>
-        </main>
-    </div>
 
-    <!-- ==========================================================================
-       4. CLIENT RUNTIME SYSTEM SCHEMAS & CONTROLLERS
-       ========================================================================== */ -->
-    <script>
-        const LocalStorageDriver = {
-            fetch(key) { return JSON.parse(localStorage.getItem('ctw_core_' + key)); },
-            commit(key, data) { localStorage.setItem('ctw_core_' + key, JSON.stringify(data)); }
-        };
-
-        const DevMatrixEngine = {
-            schools: [],
-            
-            init() {
-                this.schools = LocalStorageDriver.fetch('schools') || [];
-                if(this.schools.length === 0) {
-                    this.schools.push({
-                        id: "sch_default",
-                        name: "CODE THE WEB International",
-                        logo: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236366f1'><path d='M12 3L1 9l11 6 9-4.91V17h2V9L12 3z'/></svg>",
-                        pass: "admin123",
-                        location: "Accra, Ghana",
-                        color: "#6366f1",
-                        info: "Unlocking potentials, unleashing digital possibilities.",
-                        about: "Flagship baseline foundational pilot enterprise installation for testing ERP modules.",
-                        users: { teachers: [], students: [], parents: [] }
-                    });
-                    LocalStorageDriver.commit('schools', this.schools);
-                }
-                this.renderTenantTableRows();
+            <!-- SECTIONS FRAME -->
+            <div class="p-6 md:p-8 flex-1 max-w-7xl w-full mx-auto space-y-6">
                 
-                // BULLETPROOF SHORTCUT ENGINE: Listens to explicit keyboard event keyCodes to avoid systemic layout overrides
-                window.addEventListener('keydown', (e) => {
-                    if (e.ctrlKey && e.shiftKey && (e.code === 'KeyD' || e.keyCode === 68)) {
-                        e.preventDefault();
-                        DevMatrixEngine.enterDevMode();
-                    }
-                });
-            },
-
-            enterDevMode() {
-                document.getElementById('auth-container').style.display = 'none';
-                document.getElementById('app-container').style.display = 'none';
-                document.getElementById('dev-container').style.display = 'flex';
-                TenantRuntimeEngine.emitToast("Developer workspace subsystem loaded successfully.", "success");
-                this.renderTenantTableRows();
-            },
-
-            exitDevMode() {
-                document.getElementById('dev-container').style.display = 'none';
-                document.getElementById('auth-container').style.display = 'flex';
-                TenantRuntimeEngine.repopulateTenantSelectors();
-            },
-
-            handleFormSubmission(e) {
-                e.preventDefault();
-                const targetId = document.getElementById('dev-edit-target-id').value;
-                const name = document.getElementById('dev-sch-name').value;
-                const logo = document.getElementById('dev-sch-logo').value || "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236366f1'><path d='M12 3L1 9l11 6 9-4.91V17h2V9L12 3z'/></svg>";
-                const pass = document.getElementById('dev-sch-pass').value;
-                const location = document.getElementById('dev-sch-loc').value;
-                const color = document.getElementById('dev-sch-color').value;
-                const info = document.getElementById('dev-sch-info').value;
-                const about = document.getElementById('dev-sch-about').value;
-
-                if (targetId) {
-                    const idx = this.schools.findIndex(s => s.id === targetId);
-                    if(idx !== -1) {
-                        this.schools[idx].name = name;
-                        this.schools[idx].logo = logo;
-                        this.schools[idx].pass = pass;
-                        this.schools[idx].location = location;
-                        this.schools[idx].color = color;
-                        this.schools[idx].info = info;
-                        this.schools[idx].about = about;
-                        TenantRuntimeEngine.emitToast(`Updated configurations for ${name}.`, "success");
-                    }
-                } else {
-                    const newSchool = {
-                        id: "sch_" + Date.now(),
-                        name, logo, pass, location, color, info, about,
-                        users: { teachers: [], students: [], parents: [] }
-                    };
-                    this.schools.push(newSchool);
-                    TenantRuntimeEngine.emitToast(`Tenant profile ${newSchool.name} initialized into runtime registry.`, "success");
-                }
-
-                LocalStorageDriver.commit('schools', this.schools);
-                this.resetFormState();
-                this.renderTenantTableRows();
-            },
-
-            triggerEditState(id) {
-                const s = this.schools.find(school => school.id === id);
-                if(!s) return;
-
-                document.getElementById('dev-edit-target-id').value = s.id;
-                document.getElementById('dev-sch-name').value = s.name;
-                document.getElementById('dev-sch-logo').value = s.logo.startsWith('data:image/svg') ? '' : s.logo;
-                document.getElementById('dev-sch-pass').value = s.pass;
-                document.getElementById('dev-sch-loc').value = s.location;
-                document.getElementById('dev-sch-color').value = s.color;
-                document.getElementById('dev-sch-info').value = s.info;
-                document.getElementById('dev-sch-about').value = s.about;
-
-                document.getElementById('dev-form-heading').innerText = `Modify Settings: ${s.name}`;
-                document.getElementById('dev-form-submit-btn').innerText = "Commit Config Modifications";
-                document.getElementById('dev-cancel-edit-btn').style.display = "inline-flex";
-            },
-
-            resetFormState() {
-                document.getElementById('dev-tenant-form').reset();
-                document.getElementById('dev-edit-target-id').value = "";
-                document.getElementById('dev-form-heading').innerText = "Register New Tenant Profile";
-                document.getElementById('dev-form-submit-btn').innerText = "Provision Tenant";
-                document.getElementById('dev-cancel-edit-btn').style.display = "none";
-            },
-
-            triggerPurgeIntent(id) {
-                openScreenCenterDialog("Security Warning", `
-                    <p style="margin-bottom: 1.5rem; line-height: 1.5;">Are you sure you want to delete this school tenant profile? This will wipe all database sub-users.</p>
-                    <div style="display: flex; justify-content: center; gap: 10px;">
-                        <button class="btn btn-danger" onclick="DevMatrixEngine.executePurgeOperation('${id}')">Confirm Delete</button>
-                        <button class="btn btn-secondary" onclick="closeSystemModal(null, true)">Cancel</button>
+                <!-- SECTION: DASHBOARD -->
+                <section id="sec-dashboard" class="space-y-6">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                        <div>
+                            <span class="text-xs font-semibold text-primary-600 tracking-widest uppercase">Overview</span>
+                            <h1 class="text-2xl font-bold dark:text-white">Operational Intelligence Hub</h1>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="showSection('students')" class="bg-primary-600 hover:bg-primary-700 text-white text-xs px-4 py-2 rounded-lg font-medium shadow-sm transition"><i class="fas fa-plus mr-1"></i> Register Student</button>
+                            <button onclick="alert('PDF Report Generation successfully requested')" class="border border-gray-300 dark:border-gray-600 text-xs px-4 py-2 rounded-lg font-medium hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-white transition">Generate Report</button>
+                        </div>
                     </div>
-                `);
-            },
 
-            executePurgeOperation(id) {
-                this.schools = this.schools.filter(s => s.id !== id);
-                LocalStorageDriver.commit('schools', this.schools);
-                closeSystemModal(null, true);
-                this.renderTenantTableRows();
-                this.resetFormState();
-                TenantRuntimeEngine.emitToast("Tenant successfully dropped from core memory allocation maps.", "error");
-            },
-
-            renderTenantTableRows() {
-                const target = document.getElementById('dev-tenant-rows');
-                target.innerHTML = '';
-                this.schools.forEach(s => {
-                    const tr = document.createElement('tr');
-                    const imgFallback = s.logo.startsWith('data:image/svg') ? s.logo : `<img class='brand-logo-img' src='${s.logo}' alt='Logo'>`;
-                    tr.innerHTML = `
-                        <td style="width:60px; text-align:center; vertical-align:middle;">${imgFallback}</td>
-                        <td><b>${s.name}</b><br><span style="font-size:0.75rem; color:var(--text-secondary);">${s.location}</span></td>
-                        <td style="white-space: nowrap; width: 120px; vertical-align:middle;">
-                            <button class="btn btn-secondary" style="padding:4px 8px; font-size:0.8rem;" onclick="DevMatrixEngine.triggerEditState('${s.id}')">✏️ Edit</button>
-                            <button class="btn btn-danger" style="padding:4px 8px; font-size:0.8rem;" onclick="DevMatrixEngine.triggerPurgeIntent('${s.id}')">🗑️ Purge</button>
-                        </td>
-                    `;
-                    target.appendChild(tr);
-                });
-            }
-        };
-
-        const TenantRuntimeEngine = {
-            activeTenant: null,
-            activeUser: null,
-            activeRole: null,
-            activeView: 'dashboard',
-            theme: 'dark',
-
-            boot() {
-                DevMatrixEngine.init();
-                this.repopulateTenantSelectors();
-                this.applyDynamicBrandingContext();
-            },
-
-            emitToast(msg, type="success") {
-                const c = document.getElementById('toast-container');
-                const t = document.createElement('div');
-                t.className = `toast`;
-                t.style.background = type === 'success' ? 'var(--success-color)' : 'var(--danger-color)';
-                t.innerText = msg;
-                c.appendChild(t);
-                setTimeout(() => t.remove(), 4000);
-            },
-
-            toggleThemeMode() {
-                this.theme = this.theme === 'dark' ? 'light' : 'dark';
-                document.documentElement.setAttribute('data-theme', this.theme);
-            },
-
-            repopulateTenantSelectors() {
-                const sel = document.getElementById('login-tenant-select');
-                sel.innerHTML = '';
-                DevMatrixEngine.schools.forEach(s => {
-                    const opt = document.createElement('option');
-                    opt.value = s.id;
-                    opt.innerText = s.name;
-                    sel.appendChild(opt);
-                });
-                this.applyDynamicBrandingContext();
-            },
-
-            applyDynamicBrandingContext() {
-                const currentTenantId = document.getElementById('login-tenant-select').value;
-                if(!currentTenantId) return;
-                const school = DevMatrixEngine.schools.find(s => s.id === currentTenantId);
-                if(!school) return;
-                
-                document.getElementById('login-branding-name').innerText = school.name;
-                document.getElementById('login-branding-info').innerText = school.info;
-                
-                const previewEl = document.getElementById('login-logo-preview');
-                if(school.logo.startsWith('data:image/svg')) {
-                    previewEl.style.display = "none";
-                    let oldSvg = previewEl.parentNode.querySelector('svg');
-                    if(oldSvg) oldSvg.remove();
-                    previewEl.insertAdjacentHTML('afterend', school.logo);
-                    let newSvg = previewEl.parentNode.querySelector('svg');
-                    if(newSvg) { newSvg.style.width = "64px"; newSvg.style.height = "64px"; }
-                } else {
-                    let oldSvg = previewEl.parentNode.querySelector('svg');
-                    if(oldSvg) oldSvg.remove();
-                    previewEl.style.display = "block";
-                    previewEl.src = school.logo;
-                }
-
-                document.documentElement.style.setProperty('--tenant-color', school.color);
-                document.documentElement.style.setProperty('--tenant-hover', school.color + "dd");
-            },
-
-            executeLoginSession(e) {
-                e.preventDefault();
-                const tenantId = document.getElementById('login-tenant-select').value;
-                const role = document.getElementById('login-role-select').value;
-                const idCode = document.getElementById('login-id').value;
-                const password = document.getElementById('login-pass').value;
-
-                const school = DevMatrixEngine.schools.find(s => s.id === tenantId);
-                if(!school) return;
-
-                if(role === 'Administrator') {
-                    if(idCode === 'admin' && password === school.pass) {
-                        this.initiateRuntimeContext(school, { name: 'Master System Administrator' }, role);
-                    } else {
-                        this.emitToast("Invalid administrative credential keys.", "error");
-                    }
-                } else {
-                    const collection = role === 'Teacher' ? school.users.teachers : (role === 'Student' ? school.users.students : school.users.parents);
-                    const account = collection.find(u => u.loginId === idCode && u.password === password);
-                    
-                    if(account) {
-                        this.initiateRuntimeContext(school, account, role);
-                    } else {
-                        this.emitToast("Profile credential pair tracking validation error.", "error");
-                    }
-                }
-            },
-
-            initiateRuntimeContext(school, user, role) {
-                this.activeTenant = school;
-                this.activeUser = user;
-                this.activeRole = role;
-                
-                document.getElementById('system-tab-title').innerText = `${school.name} - ${role} Workspace`;
-                
-                const titleBlock = document.getElementById('sidebar-branding-title');
-                if(school.logo.startsWith('data:image/svg')) {
-                    titleBlock.innerHTML = `${school.logo} <span style="margin-left:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${school.name}</span>`;
-                    let sidebarSvg = titleBlock.querySelector('svg');
-                    if(sidebarSvg) { sidebarSvg.style.width = "24px"; sidebarSvg.style.height = "24px"; }
-                } else {
-                    titleBlock.innerHTML = `<img src="${school.logo}" class="brand-logo-img" style="width:24px; height:24px;"> <span style="margin-left:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${school.name}</span>`;
-                }
-
-                document.getElementById('auth-container').style.display = 'none';
-                document.getElementById('app-container').style.display = 'flex';
-                
-                this.buildWorkspaceRouteArchitecture();
-                this.transitionView('dashboard');
-                this.emitToast(`Access granted: Welcome to ${school.name}`, "success");
-            },
-
-            terminateSession() {
-                this.activeTenant = null; this.activeUser = null; this.activeRole = null;
-                document.getElementById('app-container').style.display = 'none';
-                document.getElementById('auth-container').style.display = 'flex';
-                document.getElementById('system-tab-title').innerText = "CTW POS System - Advanced Enterprise School ERP Engine";
-                this.repopulateTenantSelectors();
-                this.emitToast("Session connection safely terminated.");
-            },
-
-            buildWorkspaceRouteArchitecture() {
-                const target = document.getElementById('app-menu-routes');
-                target.innerHTML = '';
-                
-                const matrix = {
-                    Administrator: [
-                        { view: 'dashboard', label: 'Overview Metrics', icon: '📊' },
-                        { view: 'provisioning', label: 'User Provisioning Core', icon: '🔑' },
-                        { view: 'about', label: 'Institutional Profile', icon: 'ℹ️' }
-                    ],
-                    Teacher: [
-                        { view: 'dashboard', label: 'Faculty Interface', icon: '🧑‍🏫' },
-                        { view: 'about', label: 'Institutional Profile', icon: 'ℹ️' }
-                    ],
-                    Student: [
-                        { view: 'dashboard', label: 'Academic Workspace', icon: '🎓' },
-                        { view: 'about', label: 'Institutional Profile', icon: 'ℹ️' }
-                    ],
-                    Parent: [
-                        { view: 'dashboard', label: 'Ward Analytics Portal', icon: '🛡️' },
-                        { view: 'about', label: 'Institutional Profile', icon: 'ℹ️' }
-                    ]
-                };
-
-                matrix[this.activeRole].forEach(item => {
-                    const li = document.createElement('li');
-                    li.className = `nav-item ${this.activeView === item.view ? 'active' : ''}`;
-                    li.innerHTML = `<span>${item.icon}</span> ${item.label}`;
-                    li.onclick = () => this.transitionView(item.view);
-                    li.setAttribute('data-view-bind', item.view);
-                    target.appendChild(li);
-                });
-            },
-
-            transitionView(viewId) {
-                this.activeView = viewId;
-                document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-                const activeEl = document.querySelector(`[data-view-bind="${viewId}"]`);
-                if(activeEl) activeEl.classList.add('active');
-                
-                document.getElementById('app-stage-title').innerText = `${this.activeRole} Pipeline -> ${viewId.toUpperCase()}`;
-                this.renderStageOutput();
-            },
-
-            renderStageOutput() {
-                const ws = document.getElementById('app-workspace-stage');
-                
-                if(this.activeView === 'dashboard') {
-                    ws.innerHTML = `
-                        <div class="grid-4" style="margin-bottom:20px;">
-                            <div class="glass-panel content-card"><h3>Active Faculty Units</h3><p style="font-size:2rem; font-weight:700;">${this.activeTenant.users.teachers.length}</p></div>
-                            <div class="glass-panel content-card"><h3>Enrolled Active Students</h3><p style="font-size:2rem; font-weight:700;">${this.activeTenant.users.students.length}</p></div>
-                            <div class="glass-panel content-card"><h3>Linked Active Parent Units</h3><p style="font-size:2rem; font-weight:700;">${this.activeTenant.users.parents.length}</p></div>
-                            <div class="glass-panel content-card"><h3>Operational Matrix Status</h3><p style="color:var(--success-color); font-weight:bold;">Active Online</p></div>
+                    <!-- KANBAN STATS CARDS -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                            <div>
+                                <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Total Students</p>
+                                <h3 class="text-2xl font-bold mt-1 text-slate-800 dark:text-white" id="statStudentsCount">2</h3>
+                                <span class="text-green-500 text-[10px] font-semibold"><i class="fas fa-arrow-up mr-1"></i> +4.1% MoM</span>
+                            </div>
+                            <div class="w-12 h-12 bg-primary-50 dark:bg-primary-950/30 text-primary-600 dark:text-primary-400 rounded-xl flex items-center justify-center text-lg"><i class="fas fa-user-graduate"></i></div>
                         </div>
-                        <div class="glass-panel content-card">
-                            <div class="card-header"><h3>Instance Activity Runtime Dashboard Analyser</h3></div>
-                            <div style="position:relative; width:100%; height:180px;"><canvas id="stage-canvas-runtime-analytics"></canvas></div>
-                        </div>
-                    `;
-                    setTimeout(() => {
-                        const canvas = document.getElementById('stage-canvas-runtime-analytics'); if(!canvas) return;
-                        const ctx = canvas.getContext('2d'); const rect = canvas.getBoundingClientRect();
-                        canvas.width = rect.width; canvas.height = rect.height;
-                        ctx.strokeStyle = "rgba(255,255,255,0.1)"; ctx.beginPath(); ctx.moveTo(20,10); ctx.lineTo(20, rect.height-20); ctx.lineTo(rect.width, rect.height-20); ctx.stroke();
-                        ctx.fillStyle = "rgba(99, 102, 241, 0.4)"; ctx.fillRect(40, rect.height-90, 40, 70); ctx.fillRect(110, rect.height-130, 40, 110); ctx.fillRect(180, rect.height-70, 40, 50);
-                    }, 50);
-                    
-                } else if(this.activeView === 'provisioning') {
-                    this.renderProvisioningPanelInterface();
-                } else if(this.activeView === 'about') {
-                    ws.innerHTML = `
-                        <div class="glass-panel content-card" style="line-height:1.6;">
-                            <div class="card-header"><h2>${this.activeTenant.name}</h2></div>
-                            <p style="font-size:1.1rem; font-weight:bold; color:var(--tenant-color); margin-bottom:1rem;">📍 Address Coordinate Location: ${this.activeTenant.location}</p>
-                            <blockquote style="background:rgba(255,255,255,0.05); padding:1rem; border-left:4px solid var(--tenant-color); margin-bottom:1.5rem; border-radius:4px;">"${this.activeTenant.info}"</blockquote>
-                            <h3>Historical Core Institutional Narrative Profile Context</h3>
-                            <p style="color:var(--text-secondary); margin-top:0.5rem;">${this.activeTenant.about}</p>
-                        </div>
-                    `;
-                }
-            },
 
-            renderProvisioningPanelInterface() {
-                const ws = document.getElementById('app-workspace-stage');
-                let userRows = '';
-                ['teachers', 'students', 'parents'].forEach(grp => {
-                    this.activeTenant.users[grp].forEach(u => {
-                        userRows += `<tr><td><b>${grp.toUpperCase()}</b></td><td>${u.name}</td><td><code style="background:rgba(255,255,255,0.1); padding:2px 4px; border-radius:4px;">${u.loginId}</code></td><td><code>${u.password}</code></td></tr>`;
-                    });
-                });
+                        <div class="p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                            <div>
+                                <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Faculty Headcount</p>
+                                <h3 class="text-2xl font-bold mt-1 text-slate-800 dark:text-white">14</h3>
+                                <span class="text-slate-500 text-[10px] font-medium">Full and Part Time</span>
+                            </div>
+                            <div class="w-12 h-12 bg-green-50 dark:bg-green-950/30 text-green-600 dark:text-green-400 rounded-xl flex items-center justify-center text-lg"><i class="fas fa-chalkboard-teacher"></i></div>
+                        </div>
 
-                ws.innerHTML = `
-                    <div class="grid-2">
-                        <div class="glass-panel content-card">
-                            <div class="card-header"><h3>Forge Account Access Sub-Profile Matrix</h3></div>
-                            <form onsubmit="TenantRuntimeEngine.commitNewUserTokenProvision(event)">
-                                <div class="form-group">
-                                    <label>Role Mapping Assignment Target</label>
-                                    <select class="form-control" id="prov-role"><option value="teachers">Teacher Matrix</option><option value="students">Student Base</option><option value="parents">Parent Unit</option></select>
+                        <div class="p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                            <div>
+                                <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Pending Fee Invoices</p>
+                                <h3 class="text-2xl font-bold mt-1 text-slate-800 dark:text-white">$3,150</h3>
+                                <span class="text-red-500 text-[10px] font-semibold"><i class="fas fa-info-circle mr-1"></i> Overdue</span>
+                            </div>
+                            <div class="w-12 h-12 bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 rounded-xl flex items-center justify-center text-lg"><i class="fas fa-wallet"></i></div>
+                        </div>
+
+                        <div class="p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                            <div>
+                                <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">System Health</p>
+                                <h3 class="text-2xl font-bold mt-1 text-slate-800 dark:text-white">99.98%</h3>
+                                <span class="text-green-500 text-[10px] font-semibold"><i class="fas fa-check-circle mr-1"></i> Online</span>
+                            </div>
+                            <div class="w-12 h-12 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 rounded-xl flex items-center justify-center text-lg"><i class="fas fa-server"></i></div>
+                        </div>
+                    </div>
+
+                    <!-- ANALYTICS CHARTS GRID -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="lg:col-span-2 p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 space-y-4">
+                            <div class="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 pb-3">
+                                <h4 class="font-bold text-sm dark:text-white">Registration & Admission Performance</h4>
+                                <span class="text-xs text-gray-400">Current Academic Term</span>
+                            </div>
+                            <div class="h-64"><canvas id="analyticsChart"></canvas></div>
+                        </div>
+
+                        <div class="p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 space-y-4">
+                            <div class="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 pb-3">
+                                <h4 class="font-bold text-sm dark:text-white">Fee Status Distro</h4>
+                                <span class="text-xs text-gray-400">Revenue Breakdowns</span>
+                            </div>
+                            <div class="h-64"><canvas id="distributionChart"></canvas></div>
+                        </div>
+                    </div>
+
+                    <!-- METRIC SPLIT & REALTIME REVIEWS -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- Recent Activity Log -->
+                        <div class="p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 space-y-4">
+                            <h4 class="font-bold text-sm dark:text-white border-b border-gray-100 dark:border-gray-700 pb-3">System Log Notifications</h4>
+                            <div class="space-y-4">
+                                <div class="flex items-start gap-3">
+                                    <div class="p-2 bg-blue-100 text-blue-700 rounded-full text-xs"><i class="fas fa-file-invoice"></i></div>
+                                    <div>
+                                        <h5 class="text-xs font-semibold text-gray-800 dark:text-gray-200">Invoice Created: CTW-INV-2026-004</h5>
+                                        <p class="text-[10px] text-gray-500">Auto-generated for student Samuel Mensah.</p>
+                                    </div>
                                 </div>
-                                <div class="form-group"><label>Display Real Name Identity</label><input type="text" class="form-control" id="prov-name" required placeholder="John Doe"></div>
-                                <div class="form-group"><label>Unique Account Login Reference User Code</label><input type="text" class="form-control" id="prov-id" required placeholder="e.g. tcher_john"></div>
-                                <div class="form-group"><label>Access Security Key Passphrase</label><input type="text" class="form-control" id="prov-pass" required placeholder="Secret entry phrase token"></div>
-                                <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">Affix Credentials and Bind Active Context</button>
-                            </form>
+                                <div class="flex items-start gap-3">
+                                    <div class="p-2 bg-green-100 text-green-700 rounded-full text-xs"><i class="fas fa-user-plus"></i></div>
+                                    <div>
+                                        <h5 class="text-xs font-semibold text-gray-800 dark:text-gray-200">Admissions Record Approved</h5>
+                                        <p class="text-[10px] text-gray-500">Sophia Amponsah enrolled into Grade 11 Sciences.</p>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="glass-panel content-card">
-                            <div class="card-header"><h3>Current Sub-Tenant Profile Allocation Log Matrix</h3></div>
-                            <div class="table-responsive" style="max-height:400px; overflow-y:auto;">
-                                <table class="data-table">
-                                    <thead><tr><th>Sub-Role Space</th><th>Name</th><th>User Account ID</th><th>Security Key Pass</th></tr></thead>
-                                    <tbody>${userRows || '<tr><td colspan="4" style="text-align:center; color:var(--text-secondary);">No custom sub-users provisioned inside this tenant context workspace block layer.</td></tr>'}</tbody>
-                                </table>
+
+                        <!-- School Information Core -->
+                        <div class="p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 space-y-4">
+                            <h4 class="font-bold text-sm dark:text-white border-b border-gray-100 dark:border-gray-700 pb-3">Institution Profile (SaaS Domain)</h4>
+                            <div class="grid grid-cols-2 gap-4 text-xs">
+                                <div class="space-y-1">
+                                    <span class="text-gray-400">School Brand</span>
+                                    <p class="font-semibold text-gray-800 dark:text-gray-200">CODE THE WEB (CTW)</p>
+                                </div>
+                                <div class="space-y-1">
+                                    <span class="text-gray-400">Contact Email</span>
+                                    <p class="font-semibold text-gray-800 dark:text-gray-200">officialcodetheweb@gmail.com</p>
+                                </div>
+                                <div class="space-y-1">
+                                    <span class="text-gray-400">Registered Line</span>
+                                    <p class="font-semibold text-gray-800 dark:text-gray-200">0551918658</p>
+                                </div>
+                                <div class="space-y-1">
+                                    <span class="text-gray-400">Active Term</span>
+                                    <p class="font-semibold text-gray-800 dark:text-gray-200">Summer Academic Year 2026</p>
+                                </div>
                             </div>
                         </div>
                     </div>
-                `;
-            },
+                </section>
 
-            commitNewUserTokenProvision(e) {
-                e.preventDefault();
-                const grp = document.getElementById('prov-role').value;
-                const name = document.getElementById('prov-name').value;
-                const loginId = document.getElementById('prov-id').value;
-                const password = document.getElementById('prov-pass').value;
+                <!-- SECTION: STUDENTS -->
+                <section id="sec-students" class="space-y-6 hidden">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div>
+                            <span class="text-xs font-semibold text-primary-600 tracking-widest uppercase">Operational Registry</span>
+                            <h1 class="text-2xl font-bold dark:text-white">Students Management</h1>
+                        </div>
+                        <button onclick="openModal('addStudentModal')" class="bg-primary-600 hover:bg-primary-700 text-white text-xs px-4 py-2.5 rounded-lg font-medium shadow-sm transition"><i class="fas fa-plus mr-1"></i> Register New Student</button>
+                    </div>
 
-                const schools = LocalStorageDriver.fetch('schools');
-                const sIdx = schools.findIndex(s => s.id === this.activeTenant.id);
+                    <!-- FILTER STRIP -->
+                    <div class="p-4 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row gap-3 items-center justify-between">
+                        <div class="relative w-full sm:w-72">
+                            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                            <input type="text" id="studentSearchInput" onkeyup="searchStudents()" placeholder="Search registry database..." class="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-gray-700 text-xs border border-gray-200 dark:border-gray-600 rounded-lg outline-none focus:ring-1 focus:ring-primary-500 text-slate-800 dark:text-slate-100">
+                        </div>
+                        <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+                            <button onclick="alert('Export to Excel initiated.')" class="p-2 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-50 text-xs"><i class="fas fa-file-excel mr-1"></i> Excel</button>
+                            <button onclick="alert('Export to PDF initiated.')" class="p-2 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-50 text-xs"><i class="fas fa-file-pdf mr-1"></i> PDF</button>
+                        </div>
+                    </div>
+
+                    <!-- STUDENTS TABLE -->
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead class="bg-slate-50 dark:bg-gray-700/50 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                                    <tr>
+                                        <th class="p-4">Student Profile</th>
+                                        <th class="p-4">Enrollment ID</th>
+                                        <th class="p-4">Class Level</th>
+                                        <th class="p-4">Guardian Contact</th>
+                                        <th class="p-4">Fee Balance</th>
+                                        <th class="p-4">Status</th>
+                                        <th class="p-4 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="studentsTableBody" class="divide-y divide-gray-100 dark:divide-gray-700 text-xs">
+                                    <!-- Populated programmatically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION: TEACHERS -->
+                <section id="sec-teachers" class="space-y-6 hidden">
+                    <div>
+                        <span class="text-xs font-semibold text-primary-600 tracking-widest uppercase">Faculties</span>
+                        <h1 class="text-2xl font-bold dark:text-white">Academic Faculty</h1>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <!-- Faculty Card 1 -->
+                        <div class="p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 space-y-4">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-700 text-sm">EM</div>
+                                <div>
+                                    <h4 class="font-bold text-sm dark:text-white">Emmanuel Mensah</h4>
+                                    <p class="text-xs text-gray-400">Head of Department, Applied Sciences</p>
+                                </div>
+                            </div>
+                            <div class="space-y-2 border-t border-gray-100 dark:border-gray-700 pt-3 text-xs text-gray-500">
+                                <div class="flex justify-between"><span>Subject Track:</span> <span class="font-semibold text-slate-700 dark:text-slate-300">Physics & Maths</span></div>
+                                <div class="flex justify-between"><span>Total Experience:</span> <span class="font-semibold text-slate-700 dark:text-slate-300">8 Years</span></div>
+                                <div class="flex justify-between"><span>Faculty Tenure:</span> <span class="font-semibold text-slate-700 dark:text-slate-300">Full Time</span></div>
+                            </div>
+                        </div>
+
+                        <!-- Faculty Card 2 -->
+                        <div class="p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 space-y-4">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-700 text-sm">RA</div>
+                                <div>
+                                    <h4 class="font-bold text-sm dark:text-white">Richard Appiah</h4>
+                                    <p class="text-xs text-gray-400">Senior Lecturer, Software Design</p>
+                                </div>
+                            </div>
+                            <div class="space-y-2 border-t border-gray-100 dark:border-gray-700 pt-3 text-xs text-gray-500">
+                                <div class="flex justify-between"><span>Subject Track:</span> <span class="font-semibold text-slate-700 dark:text-slate-300">Web & App Dev</span></div>
+                                <div class="flex justify-between"><span>Total Experience:</span> <span class="font-semibold text-slate-700 dark:text-slate-300">5 Years</span></div>
+                                <div class="flex justify-between"><span>Faculty Tenure:</span> <span class="font-semibold text-slate-700 dark:text-slate-300">Part Time</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION: FINANCE -->
+                <section id="sec-finance" class="space-y-6 hidden">
+                    <div>
+                        <span class="text-xs font-semibold text-primary-600 tracking-widest uppercase">Accounting</span>
+                        <h1 class="text-2xl font-bold dark:text-white">Finance & Fees Hub</h1>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 space-y-2">
+                            <span class="text-[10px] uppercase font-semibold text-gray-400">Total System Revenue</span>
+                            <h3 class="text-3xl font-bold dark:text-white">$145,280</h3>
+                            <p class="text-xs text-green-500"><i class="fas fa-caret-up mr-1"></i> Up 12% over last term</p>
+                        </div>
+                        <div class="p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 space-y-2">
+                            <span class="text-[10px] uppercase font-semibold text-gray-400">Outstanding Receivable Balances</span>
+                            <h3 class="text-3xl font-bold text-red-500">$18,400</h3>
+                            <p class="text-xs text-slate-400">12 Unpaid balance profiles</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION: EXAMS -->
+                <section id="sec-exams" class="space-y-6 hidden">
+                    <div>
+                        <span class="text-xs font-semibold text-primary-600 tracking-widest uppercase">Assessments</span>
+                        <h1 class="text-2xl font-bold dark:text-white">Exams & Grading Registry</h1>
+                    </div>
+
+                    <div class="p-6 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700">
+                        <h3 class="font-bold text-sm mb-4">Summer Mid-term Schedules (Grade 10 & 11)</h3>
+                        <div class="space-y-3">
+                            <div class="p-4 bg-slate-50 dark:bg-gray-700 rounded-lg flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-xs">
+                                <div>
+                                    <h4 class="font-bold text-gray-800 dark:text-gray-200">Advanced Mathematics - Paper 1</h4>
+                                    <p class="text-gray-400 text-[10px]">Term Comprehensive Track</p>
+                                </div>
+                                <span class="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full font-medium">Pending Entry</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION: LIVE COMMUNICATION CHAT -->
+                <section id="sec-communication" class="space-y-6 hidden">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div>
+                            <span class="text-xs font-semibold text-primary-600 tracking-widest uppercase">Collaboration</span>
+                            <h1 class="text-2xl font-bold dark:text-white">Ably Real-time Hub</h1>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="inline-block w-2.5 h-2.5 bg-green-500 rounded-full animate-ping"></span>
+                            <span class="text-xs font-medium text-gray-500 dark:text-gray-400">Channel Status: Connected</span>
+                        </div>
+                    </div>
+
+                    <!-- Live Channel Overview Info Box -->
+                    <div class="p-4 bg-indigo-50 dark:bg-indigo-950/20 rounded-xl border border-indigo-100 dark:border-indigo-900/30 text-xs leading-relaxed text-indigo-700 dark:text-indigo-300">
+                        <p class="font-semibold mb-1"><i class="fas fa-network-wired mr-1.5"></i> Broadcast Server Connected</p>
+                        This dashboard is synced via serverless real-time events. Try opening this application in two separate browser window instances side-by-side to experience instantaneous, bi-directional live messaging!
+                    </div>
+
+                    <!-- Multi-panel Chat Architecture -->
+                    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                        <!-- Direct Channel Presets -->
+                        <div class="lg:col-span-1 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4 space-y-4">
+                            <h3 class="font-bold text-xs uppercase tracking-wider text-gray-400">Channels</h3>
+                            <div class="space-y-2">
+                                <a href="#" class="flex items-center gap-2.5 p-2.5 bg-primary-50 dark:bg-primary-950/30 text-primary-600 rounded-lg text-xs font-medium">
+                                    <i class="fas fa-bullhorn text-sm"></i>
+                                    <span>Faculty Lounge</span>
+                                </a>
+                                <a href="#" onclick="alert('Private student/parent channel is view-only in trial mode.')" class="flex items-center gap-2.5 p-2.5 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg text-xs">
+                                    <i class="fas fa-lock text-sm"></i>
+                                    <span>Admissions Desk</span>
+                                </a>
+                            </div>
+                        </div>
+
+                        <!-- Main Chat Screen -->
+                        <div class="lg:col-span-3 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col h-[450px]">
+                            <!-- Chat Area Header -->
+                            <div class="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 rounded bg-primary-100 text-primary-600 flex items-center justify-center font-bold text-sm">FL</div>
+                                    <div>
+                                        <h4 class="font-bold text-xs dark:text-white">Faculty Lounge Channel</h4>
+                                        <p class="text-[9px] text-gray-400">Active Campus Announcement Room</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Live Broadcast Stream -->
+                            <div id="ablyMessagesBox" class="flex-1 p-4 overflow-y-auto space-y-3 sidebar-scroll">
+                                <div class="p-3 rounded-lg bg-slate-50 dark:bg-gray-700/30 max-w-[85%] mr-auto">
+                                    <p class="text-[10px] text-primary-600 font-semibold mb-0.5">Campus Desk (System)</p>
+                                    <p class="text-xs text-gray-700 dark:text-gray-300 leading-relaxed">Welcome! Systems operational on Ably channel. Post below to begin.</p>
+                                </div>
+                            </div>
+
+                            <!-- Send Input Tray -->
+                            <div class="p-4 border-t border-gray-100 dark:border-gray-700">
+                                <form id="chatForm" onsubmit="publishChatMessage(event)" class="flex gap-2">
+                                    <input type="text" id="chatInput" placeholder="Write a message to sync in real-time..." required class="flex-1 px-4 py-2.5 text-xs bg-slate-50 dark:bg-gray-700 text-slate-800 dark:text-slate-100 border border-gray-200 dark:border-gray-600 rounded-lg outline-none focus:ring-1 focus:ring-primary-500">
+                                    <button type="submit" class="bg-primary-600 hover:bg-primary-700 text-white px-4 rounded-lg flex items-center justify-center transition"><i class="fas fa-paper-plane text-xs"></i></button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION: ERP SETTINGS -->
+                <section id="sec-settings" class="space-y-6 hidden">
+                    <div>
+                        <span class="text-xs font-semibold text-primary-600 tracking-widest uppercase">Configuration</span>
+                        <h1 class="text-2xl font-bold dark:text-white">ERP Platform Settings</h1>
+                    </div>
+
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 space-y-6">
+                        <div>
+                            <h3 class="font-bold text-sm mb-4 dark:text-white">Platform Theme Defaults</h3>
+                            <div class="flex items-center gap-3">
+                                <button onclick="setThemeMode('light')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-xs font-medium text-slate-700 rounded-lg">Default Light</button>
+                                <button onclick="setThemeMode('dark')" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-medium text-white rounded-lg">Default Dark</button>
+                            </div>
+                        </div>
+
+                        <div class="border-t border-gray-100 dark:border-gray-700 pt-6">
+                            <h3 class="font-bold text-sm mb-4 dark:text-white">Security & API Channels</h3>
+                            <div class="space-y-2">
+                                <label class="block text-xs text-gray-500">Live Ably API Key configured:</label>
+                                <input type="text" readonly value="LLfRjA.j4Y1GQ:JoO4hvLPV6GcaOJd7w6IS6zcWJX9BgEOShVZn2kW6b8" class="w-full bg-slate-100 dark:bg-gray-700 p-3 rounded text-[10px] font-mono text-gray-600 dark:text-gray-300 select-all outline-none">
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+
+            <!-- FOOTER -->
+            <footer class="p-6 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-center text-xs text-gray-400">
+                &copy; 2026 CTW SMS Dashboard Platform. Unlocking potentials, unleashing digital possibilities.
+            </footer>
+        </main>
+    </div>
+
+    <!-- MODAL: REGISTER NEW STUDENT -->
+    <div id="addStudentModal" class="fixed inset-0 z-50 flex items-center justify-center hidden bg-black/50 overflow-y-auto">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-lg w-full p-6 m-4 relative space-y-6">
+            <div class="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 pb-3">
+                <h3 class="font-bold text-base dark:text-white">Register Student Record</h3>
+                <button onclick="closeModal('addStudentModal')" class="text-gray-500 hover:text-gray-700"><i class="fas fa-times"></i></button>
+            </div>
+
+            <form id="addStudentForm" onsubmit="registerStudent(event)" class="space-y-4 text-xs">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block font-medium text-gray-600 dark:text-gray-400 mb-1">Full Name</label>
+                        <input type="text" id="addName" required placeholder="e.g. Samuel Mensah" class="w-full p-2.5 rounded bg-slate-50 dark:bg-gray-700 border-none outline-none dark:text-white">
+                    </div>
+                    <div>
+                        <label class="block font-medium text-gray-600 dark:text-gray-400 mb-1">Class Level</label>
+                        <input type="text" id="addClass" required placeholder="e.g. Grade 11 Sciences" class="w-full p-2.5 rounded bg-slate-50 dark:bg-gray-700 border-none outline-none dark:text-white">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block font-medium text-gray-600 dark:text-gray-400 mb-1">Guardian Contact Number</label>
+                        <input type="text" id="addGuardian" required placeholder="e.g. 0551918658" class="w-full p-2.5 rounded bg-slate-50 dark:bg-gray-700 border-none outline-none dark:text-white">
+                    </div>
+                    <div>
+                        <label class="block font-medium text-gray-600 dark:text-gray-400 mb-1">Fee Balance Due ($)</label>
+                        <input type="number" id="addFees" required placeholder="e.g. 1500" class="w-full p-2.5 rounded bg-slate-50 dark:bg-gray-700 border-none outline-none dark:text-white">
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-4">
+                    <button type="button" onclick="closeModal('addStudentModal')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg">Save Student Profile</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- SCRIPTS -->
+    <script>
+        // Real-time Clock Initialization
+        function updateClock() {
+            const clock = document.getElementById('realtimeClock');
+            if(clock) {
+                const now = new Date();
+                clock.textContent = now.toLocaleTimeString();
+            }
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // Theme Mode Config
+        function toggleDarkMode() {
+            const html = document.documentElement;
+            if(html.classList.contains('dark')) {
+                html.classList.remove('dark');
+            } else {
+                html.classList.add('dark');
+            }
+        }
+
+        function setThemeMode(mode) {
+            const html = document.documentElement;
+            if(mode === 'dark') html.classList.add('dark');
+            else html.classList.remove('dark');
+        }
+
+        // Sidebar Navigation System
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar.classList.contains('-translate-x-full')) {
+                sidebar.classList.remove('-translate-x-full');
+            } else {
+                sidebar.classList.add('-translate-x-full');
+            }
+        }
+
+        // Modal Utility Commands
+        function openModal(id) {
+            document.getElementById(id).classList.remove('hidden');
+        }
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+
+        // Toast Alert Trigger
+        function triggerToast(msg) {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toastMessage');
+            toastMessage.textContent = msg;
+            toast.classList.remove('hidden');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 4000);
+        }
+
+        // Authentication Control Bypass
+        function handleLogin(event) {
+            event.preventDefault();
+            document.getElementById('loginPage').classList.add('hidden');
+            document.getElementById('appContainer').classList.remove('hidden');
+            triggerToast("Ecosystem workspace successfully mounted.");
+            initCharts();
+            renderStudentsTable();
+        }
+
+        // Section Toggles
+        function showSection(sectionId) {
+            // Hide all sections
+            const sections = ['dashboard', 'students', 'teachers', 'finance', 'exams', 'communication', 'settings'];
+            sections.forEach(sec => {
+                const element = document.getElementById('sec-' + sec);
+                if(element) element.classList.add('hidden');
                 
-                let exists = false;
-                ['teachers','students','parents'].forEach(g => {
-                    if(schools[sIdx].users[g].some(u => u.loginId === loginId)) exists = true;
-                });
-
-                if(exists) {
-                    this.emitToast("Security Conflict: Access User ID already allocated.", "error");
-                    return;
+                const navLink = document.getElementById('nav-' + sec);
+                if(navLink) {
+                    navLink.className = "nav-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm transition-all";
                 }
+            });
 
-                schools[sIdx].users[grp].push({ name, loginId, password });
-                LocalStorageDriver.commit('schools', schools);
-                this.activeTenant = schools[sIdx];
+            // Show selected section
+            const targetSection = document.getElementById('sec-' + sectionId);
+            if(targetSection) targetSection.classList.remove('hidden');
+
+            const targetNav = document.getElementById('nav-' + sectionId);
+            if(targetNav) {
+                targetNav.className = "nav-link flex items-center gap-3 px-3 py-2.5 rounded-lg bg-primary-50 text-primary-600 dark:bg-primary-950/30 dark:text-primary-400 font-medium text-sm transition-all";
+            }
+        }
+
+        // Preloaded Static State for Dynamic Tables
+        let studentsData = [
+            { id: "CTW-STU-101", name: "Sophia Amponsah", class: "Grade 11 Sciences", guardian: "0551918658", fees: "$1,500", status: "Active" },
+            { id: "CTW-STU-102", name: "Michael Appiah", class: "Grade 10 General", guardian: "0243110292", fees: "$0.00", status: "Paid" }
+        ];
+
+        function renderStudentsTable() {
+            const tbody = document.getElementById('studentsTableBody');
+            tbody.innerHTML = '';
+            
+            studentsData.forEach(st => {
+                const row = document.createElement('tr');
+                row.className = "hover:bg-slate-50 dark:hover:bg-gray-700/50 transition duration-150";
                 
-                this.emitToast(`User account token mapped safely under grouping block context: ${grp.toUpperCase()}`, "success");
-                this.renderProvisioningPanelInterface();
-                e.target.reset();
-            }
-        };
+                const badgeColor = st.status === 'Paid' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
 
-        function openScreenCenterDialog(title, bodyHtml) {
-            document.getElementById('modal-title').innerText = title;
-            document.getElementById('modal-body').innerHTML = bodyHtml;
-            document.getElementById('modal-system').style.display = "flex";
+                row.innerHTML = `
+                    <td class="p-4 font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                        <div class="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center text-[10px] text-gray-700 font-bold">${st.name.charAt(0)}</div>
+                        ${st.name}
+                    </td>
+                    <td class="p-4 text-gray-500">${st.id}</td>
+                    <td class="p-4 text-gray-500">${st.class}</td>
+                    <td class="p-4 text-gray-500">${st.guardian}</td>
+                    <td class="p-4 font-semibold">${st.fees}</td>
+                    <td class="p-4"><span class="px-2 py-0.5 rounded text-[10px] font-semibold ${badgeColor}">${st.status}</span></td>
+                    <td class="p-4 text-right">
+                        <button onclick="alert('Viewing profile for ${st.name}')" class="text-xs text-primary-600 hover:text-primary-800 font-medium mr-2">Edit</button>
+                        <button onclick="deleteStudent('${st.id}')" class="text-xs text-red-500 hover:text-red-700 font-medium">Delete</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            // Sync badges
+            document.getElementById('studentBadge').textContent = studentsData.length;
+            document.getElementById('statStudentsCount').textContent = studentsData.length;
         }
 
-        function closeSystemModal(e, force=false) {
-            if(force || e.target.classList.contains('modal-backdrop')) {
-                document.getElementById('modal-system').style.display = 'none';
+        // Student Database Actions
+        function registerStudent(event) {
+            event.preventDefault();
+            const name = document.getElementById('addName').value;
+            const className = document.getElementById('addClass').value;
+            const guardian = document.getElementById('addGuardian').value;
+            const feesValue = parseFloat(document.getElementById('addFees').value);
+
+            const newId = `CTW-STU-${100 + studentsData.length + 1}`;
+            studentsData.push({
+                id: newId,
+                name: name,
+                class: className,
+                guardian: guardian,
+                fees: `$${feesValue.toLocaleString()}`,
+                status: feesValue > 0 ? 'Pending' : 'Paid'
+            });
+
+            renderStudentsTable();
+            closeModal('addStudentModal');
+            document.getElementById('addStudentForm').reset();
+            triggerToast(`Student record for ${name} has been verified.`);
+        }
+
+        function deleteStudent(id) {
+            if(confirm("Permanently archive student record?")) {
+                studentsData = studentsData.filter(st => st.id !== id);
+                renderStudentsTable();
+                triggerToast("Record archived.");
             }
         }
 
-        window.addEventListener('DOMContentLoaded', () => TenantRuntimeEngine.boot());
+        function searchStudents() {
+            const query = document.getElementById('studentSearchInput').value.toLowerCase();
+            const filtered = studentsData.filter(st => st.name.toLowerCase().includes(query) || st.id.toLowerCase().includes(query));
+            
+            const tbody = document.getElementById('studentsTableBody');
+            tbody.innerHTML = '';
+            
+            filtered.forEach(st => {
+                const row = document.createElement('tr');
+                row.className = "hover:bg-slate-50 dark:hover:bg-gray-700/50 transition duration-150";
+                const badgeColor = st.status === 'Paid' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
+
+                row.innerHTML = `
+                    <td class="p-4 font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                        <div class="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center text-[10px] text-gray-700 font-bold">${st.name.charAt(0)}</div>
+                        ${st.name}
+                    </td>
+                    <td class="p-4 text-gray-500">${st.id}</td>
+                    <td class="p-4 text-gray-500">${st.class}</td>
+                    <td class="p-4 text-gray-500">${st.guardian}</td>
+                    <td class="p-4 font-semibold">${st.fees}</td>
+                    <td class="p-4"><span class="px-2 py-0.5 rounded text-[10px] font-semibold ${badgeColor}">${st.status}</span></td>
+                    <td class="p-4 text-right">
+                        <button onclick="alert('Viewing profile for ${st.name}')" class="text-xs text-primary-600 hover:text-primary-800 font-medium mr-2">Edit</button>
+                        <button onclick="deleteStudent('${st.id}')" class="text-xs text-red-500 hover:text-red-700 font-medium">Delete</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Charts Initialization Function
+        let mainChart, sideChart;
+        function initCharts() {
+            const ctx1 = document.getElementById('analyticsChart').getContext('2d');
+            const ctx2 = document.getElementById('distributionChart').getContext('2d');
+
+            if(mainChart) mainChart.destroy();
+            if(sideChart) sideChart.destroy();
+
+            mainChart = new Chart(ctx1, {
+                type: 'line',
+                data: {
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                    datasets: [{
+                        label: 'Admissions 2026',
+                        data: [12, 19, 3, 5, 2, 3],
+                        borderColor: '#2563eb',
+                        tension: 0.4,
+                        fill: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+
+            sideChart = new Chart(ctx2, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Paid', 'Pending', 'Overdue'],
+                    datasets: [{
+                        data: [70, 20, 10],
+                        backgroundColor: ['#22c55e', '#eab308', '#ef4444']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } }
+                }
+            });
+        }
+
+        // ==========================================
+        // ABLY REAL-TIME LIVE HUB CONFIG
+        // ==========================================
+        const ABLY_KEY = "LLfRjA.j4Y1GQ:JoO4hvLPV6GcaOJd7w6IS6zcWJX9BgEOShVZn2kW6b8";
+        let ablyClient, campusChannel;
+
+        try {
+            ablyClient = new Ably.Realtime({ key: ABLY_KEY });
+            campusChannel = ablyClient.channels.get('ctw-campus-room');
+            
+            // Subscribe to live broadcast messages
+            campusChannel.subscribe('faculty-message', function(message) {
+                appendChatMessage(message.data.sender, message.data.text, message.data.time, false);
+            });
+        } catch(e) {
+            console.warn("Ably Client could not authenticate with the provided credentials. Chat interface running in mock simulation mode.", e);
+        }
+
+        function publishChatMessage(event) {
+            event.preventDefault();
+            const input = document.getElementById('chatInput');
+            const messageText = input.value.trim();
+            if(!messageText) return;
+
+            const timeString = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            // If Ably initialized, publish message to channel
+            if(campusChannel) {
+                campusChannel.publish('faculty-message', {
+                    sender: 'User Admin',
+                    text: messageText,
+                    time: timeString
+                });
+            } else {
+                // Fallback simulation if offline/blocked
+                appendChatMessage('User Admin', messageText, timeString, true);
+            }
+
+            input.value = '';
+        }
+
+        function appendChatMessage(sender, text, time, isSelf = false) {
+            const chatBox = document.getElementById('ablyMessagesBox');
+            if(!chatBox) return;
+
+            const msgDiv = document.createElement('div');
+            // Stylize based on if message belongs to self
+            if(isSelf || sender === 'User Admin') {
+                msgDiv.className = "p-3 rounded-lg bg-primary-600 text-white max-w-[85%] ml-auto";
+                msgDiv.innerHTML = `
+                    <p class="text-[10px] text-primary-100 font-semibold mb-0.5">You</p>
+                    <p class="text-xs leading-relaxed">${text}</p>
+                    <span class="block text-[8px] text-primary-200 text-right mt-1">${time}</span>
+                `;
+            } else {
+                msgDiv.className = "p-3 rounded-lg bg-slate-50 dark:bg-gray-700 max-w-[85%] mr-auto";
+                msgDiv.innerHTML = `
+                    <p class="text-[10px] text-primary-600 dark:text-primary-400 font-semibold mb-0.5">${sender}</p>
+                    <p class="text-xs text-gray-700 dark:text-gray-200 leading-relaxed">${text}</p>
+                    <span class="block text-[8px] text-gray-400 text-right mt-1">${time}</span>
+                `;
+            }
+
+            chatBox.appendChild(msgDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
     </script>
 </body>
 </html>
